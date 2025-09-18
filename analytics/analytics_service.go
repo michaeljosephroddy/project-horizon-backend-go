@@ -1,7 +1,9 @@
 package analytics
 
 import (
+	"encoding/json"
 	"fmt"
+
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
 )
 
@@ -18,7 +20,8 @@ func NewAnalyticsService(journalRepository *database.JournalRepository) *Analyti
 func (service *AnalyticsService) Metrics(userID string, startDate string, endDate string) map[string]interface{} {
 
 	movingAverages := service.journalRepository.MovingAverages(userID, startDate, endDate)
-	fmt.Println("movingAverages ", movingAverages)
+	movingAveragesJSON, _ := json.Marshal(movingAverages)
+	fmt.Println("movingAverages ", string(movingAveragesJSON))
 	// TODO implement increasing, decreasing or constant trend logic
 	// if moving avg > yesterday avg ::: increasing 
 	// if moving avg < yesterday avg ::: decreasing

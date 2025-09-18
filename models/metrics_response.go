@@ -1,0 +1,10 @@
+package models
+
+type MetricsResponse struct {
+	Trend string `json:"moodTrend"`
+	MoodTagFrequency []MoodTagFrequency `json:"moodTagFrequencies"`
+	Stability int `json:"moodStability"`
+	HighStreak []HighDay `json:"highStreak"`
+	LowStreak []LowDay `json:"lowStreak"`
+	// TODO add in the other data points best day, worst day etc..
+}

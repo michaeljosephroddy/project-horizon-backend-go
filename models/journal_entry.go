@@ -1,9 +1,9 @@
 package models
 
 type JournalEntry struct {
-	JournalEntryID int
-	UserID int
-	MoodRating int
-	Note string
-	CreatedAt string
+	JournalEntryID int `json:"journalEntryId"`
+	UserID int `json:"userId"`
+	MoodRating int `json:"moodRating"`
+	Note string `json:"note"`
+	CreatedAt string `json:"createdAt"`
 }

@@ -1,6 +1,6 @@
 package models
 
 type HighDay struct {
-	Date string
-	AvgRating float32
+	Date string `json:"date"`
+	AvgRating float32 `json:"avgRating"`
 }
