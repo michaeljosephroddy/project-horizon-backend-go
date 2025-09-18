@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics"
 	"net/http"
 	"strings"
@@ -18,9 +17,6 @@ func NewRouter(handler *analytics.AnalyticsHandler) *Router {
 }
 
 func (r *Router) RouteRequests(writer http.ResponseWriter, request *http.Request) {
-
-	fmt.Println(request.URL.Path)
-
 	switch {
 	case strings.HasPrefix(request.URL.Path, "/analytics"):
 		r.AnalyticsHandler.ProcessRequest(writer, request)

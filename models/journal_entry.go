@@ -1,11 +1,9 @@
 package models
 
 type JournalEntry struct {
-	JournalEntryId int
-	UserId int
-	OverallRating int
+	JournalEntryID int
+	UserID int
+	MoodRating int
 	Note string
-	Timestamp string
 	CreatedAt string
-	UpdatedAt string
 }

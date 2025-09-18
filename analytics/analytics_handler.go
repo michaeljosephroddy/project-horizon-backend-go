@@ -10,6 +10,7 @@ type AnalyticsHandler struct {
 	AnalyticsService *AnalyticsService
 }
 
+// TODO need to come up with a better regexp
 var metricsRegexp string = `^/analytics/users/([0-9]+)/metrics$`
 
 func NewAnalyticsHandler(analyticsService *AnalyticsService) *AnalyticsHandler {
@@ -19,15 +20,14 @@ func NewAnalyticsHandler(analyticsService *AnalyticsService) *AnalyticsHandler {
 }
 
 func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, request *http.Request) {
-
 	switch {
 	case utils.MatchURL(metricsRegexp, request.URL.Path):
 
-		userId := utils.GetUserIdFromPath(request.URL.Path)
+		userID := utils.GetUserIDFromPath(request.URL.Path)
 		startDate := request.URL.Query().Get("startDate")
 		endDate := request.URL.Query().Get("endDate")
 
-		result := handler.AnalyticsService.Metrics(userId, startDate, endDate)
+		result := handler.AnalyticsService.Metrics(userID, startDate, endDate)
 		body, _ := json.Marshal(result)
 
 		writer.Header().Set("Content-Type", "application/json")

@@ -1,6 +1,8 @@
 package models
 
 type MoodTagFrequency struct {
-	Count int32
+	MoodTagID string
+	Name string
+	Count int
 	Percentage float32
 }
