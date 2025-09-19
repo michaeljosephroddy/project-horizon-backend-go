@@ -15,7 +15,7 @@ func NewJournalRepository(dbConnection *sql.DB) *JournalRepository {
 	}
 }
 
-func (jr *JournalRepository) LowDays(userID string, startDate string, endDate string) []models.LowDay {
+func (jr *JournalRepository) LowDays(userID string, startDate string, endDate string) []models.Day {
 	query := `WITH first_query
 				 AS (SELECT Date(created_at)     AS date,
 							AVG(mood_rating) AS avg_rating
@@ -36,8 +36,8 @@ func (jr *JournalRepository) LowDays(userID string, startDate string, endDate st
 		panic(queryErr)
 	}
 
-	var lowDay models.LowDay
-	var lowDays []models.LowDay
+	var lowDay models.Day
+	var lowDays []models.Day
 
 	for rows.Next() {
 		scanErr := rows.Scan(&lowDay.Date, &lowDay.AvgRating)
@@ -139,7 +139,7 @@ func (jr *JournalRepository) JournalEntries(userID string) []models.JournalEntry
 	return journalEntries
 }
 
-func (jr *JournalRepository) HighDays(userID string, startDate string, endDate string) []models.HighDay {
+func (jr *JournalRepository) HighDays(userID string, startDate string, endDate string) []models.Day {
 	query := `WITH first_query
 				  AS (SELECT Date(created_at) AS date,
 							 AVG(mood_rating) AS avg_rating
@@ -158,8 +158,8 @@ func (jr *JournalRepository) HighDays(userID string, startDate string, endDate s
 		panic(err)
 	}
 
-	var highDay models.HighDay
-	var highDays []models.HighDay
+	var highDay models.Day
+	var highDays []models.Day
 
 	for rows.Next() {
 		rows.Scan(&highDay.Date, &highDay.AvgRating)
@@ -188,7 +188,6 @@ func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string,
 			),
 			second_query AS (
 				SELECT 
-					mood_tag_id,
 					name,
 					SUM(mood_tag_id_count) AS mood_tag_id_count,
 					(SUM(mood_tag_id_count) / SUM(SUM(mood_tag_id_count)) OVER()) * 100 AS percentage
@@ -207,10 +206,13 @@ func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string,
 	var moodTagFrequencies []models.MoodTagFrequency
 
 	for rows.Next() {
-		scanErr := rows.Scan(&moodTagFrequency.MoodTagID, &moodTagFrequency.Name, &moodTagFrequency.Count, &moodTagFrequency.Percentage)
+		scanErr := rows.Scan(&moodTagFrequency.MoodTag, &moodTagFrequency.Count, 
+			&moodTagFrequency.Percentage)
+
 		if scanErr != nil {
 			panic(scanErr)
 		}
+
 		moodTagFrequencies = append(moodTagFrequencies, moodTagFrequency)
 	}
 

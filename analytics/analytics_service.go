@@ -3,8 +3,8 @@ package analytics
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 )
 
 type AnalyticsService struct {
@@ -20,33 +20,49 @@ func NewAnalyticsService(journalRepository *database.JournalRepository) *Analyti
 func (service *AnalyticsService) Metrics(userID string, startDate string, endDate string) map[string]interface{} {
 
 	movingAverages := service.journalRepository.MovingAverages(userID, startDate, endDate)
-	movingAveragesJSON, _ := json.Marshal(movingAverages)
-	fmt.Println("movingAverages ", string(movingAveragesJSON))
-	// TODO implement increasing, decreasing or constant trend logic
-	// if moving avg > yesterday avg ::: increasing 
-	// if moving avg < yesterday avg ::: decreasing
-	// else constant
+
+	// movingAveragesJSON, _ := json.MarshalIndent(movingAverages, "", "    ")
+	// fmt.Println(string(movingAveragesJSON))
+
+	trend := "constant"
+	if movingAverages[len(movingAverages)-1].ThreeDay > movingAverages[len(movingAverages)-2].ThreeDay {
+		trend = "increasing"
+	}
+	if movingAverages[len(movingAverages)-1].ThreeDay < movingAverages[len(movingAverages)-2].ThreeDay {
+		trend = "decreasing"
+	}
+	fmt.Println(trend)
 
 	standardDeviation := service.journalRepository.StandardDeviation(userID, startDate, endDate)
-	fmt.Println("standardDeviation ", standardDeviation)
-	// TODO implement stability logic 
-	// if std deviation < 1.5 ::: low volatility stable
-	// if std deviation >= 1.5 and < 3 ::: moderate volatility
-	// if std deviatiion >= 3 ::: high volatility instable 
+
+	stability := "stable"
+	if standardDeviation >= 1.5 && standardDeviation < 3 {
+		stability = "moderate"
+	}
+	if standardDeviation >= 3 {
+		stability = "instable"
+	}
+	fmt.Println(stability)
 
 	moodTagFrequencies := service.journalRepository.MoodTagFrequencies(userID, startDate, endDate)
-	fmt.Println("moodTagFrequencies ", moodTagFrequencies)
+	moodTagFrequenciesJSON, _ := json.MarshalIndent(moodTagFrequencies, "", "    ")
+	fmt.Println(string(moodTagFrequenciesJSON))
 	// TODO add to reponse object as a list of objects
 
 	lowDays := service.journalRepository.LowDays(userID, startDate, endDate)
-	fmt.Println("lowdays ", lowDays)
+	lowDaysJSON, _ := json.MarshalIndent(lowDays, "", "    ")
+	fmt.Println(string(lowDaysJSON))
 	// TODO impplement longest low streak
 	// consecutive days where mood rating is 4 or below
+	// lowStreakCount := utils.StreakCount(lowDays)
+	// fmt.Println(lowStreakCount)
 
 	highDays := service.journalRepository.HighDays(userID, startDate, endDate)
-	fmt.Println("highdays ", highDays)
-	// TODO implement longest high steak
-	// consecutive days where mood rating is 6 or above
+	highDaysJSON, _ := json.MarshalIndent(highDays, "", "    ")
+	fmt.Println(string(highDaysJSON))
+
+	// highStreakCount := utils.StreakCount(highDays)
+	// fmt.Println(highStreakCount)
 
 	return map[string]interface{}{"empty": "empty"}
 }
