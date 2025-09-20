@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
@@ -15,7 +16,62 @@ func NewJournalRepository(dbConnection *sql.DB) *JournalRepository {
 	}
 }
 
-func (jr *JournalRepository) LowDays(userID string, startDate string, endDate string) []models.Day {
+func (jr *JournalRepository) Streaks(userID string, startDate string, endDate string, avgMoodRating string) []models.Streak {
+	query := `WITH first_query
+				 AS (SELECT DATE(created_at) AS DATE,
+							AVG(mood_rating) AS avg_rating
+					 FROM   journal_entry
+					 WHERE  user_id = ?
+							AND DATE(created_at) BETWEEN ? AND ? 
+					 GROUP  BY DATE(created_at)
+					 ORDER  BY DATE(created_at)),
+				 second_query
+				 AS (SELECT *,
+							ROW_NUMBER()
+							  OVER(
+								ORDER BY DATE) AS rn
+					 FROM   first_query
+					 WHERE  avg_rating ?),
+				 third_query
+				 AS (SELECT DATE                              AS start_date,
+							COUNT(*)                          AS streak_length,
+							Date_add(DATE, interval - rn DAY) AS consec_groups
+					 FROM   second_query
+					 GROUP  BY consec_groups),
+				 fourth_query
+				 AS (SELECT *,
+							Date_add(start_date, interval + streak_length - 1 DAY) AS
+							end_date
+					 FROM   third_query)
+			SELECT start_date,
+				   end_date,
+				   streak_length
+			FROM   fourth_query; `
+
+	rows, queryErr := jr.db.Query(query, userID, startDate, endDate, avgMoodRating)
+	if queryErr != nil {
+		panic(queryErr)
+	}
+
+	var streak models.Streak
+	var highStreaks []models.Streak
+
+	for rows.Next() {
+		scanErr := rows.Scan(&streak.StartDate, &streak.EndDate, &streak.NumDays)
+		if scanErr != nil {
+			panic(scanErr)
+		}
+		highStreaks = append(highStreaks, streak)
+	}
+
+	/* if len(highStreaks) == 1{
+		return make([]models.Streak, 0)
+	} */
+
+	return highStreaks
+}
+
+func (jr *JournalRepository) Days(userID string, startDate string, endDate string, avgMoodRating string) []models.Day {
 	query := `WITH first_query
 				 AS (SELECT Date(created_at)     AS date,
 							AVG(mood_rating) AS avg_rating
@@ -27,27 +83,27 @@ func (jr *JournalRepository) LowDays(userID string, startDate string, endDate st
 				 AS (SELECT date,
 							avg_rating
 					 FROM   first_query
-					 WHERE  avg_rating <= 4)
+					 WHERE  avg_rating ?)
 			SELECT *
 			FROM   second_query;`
 
-	rows, queryErr := jr.db.Query(query, userID, startDate, endDate)
+	rows, queryErr := jr.db.Query(query, userID, startDate, endDate, avgMoodRating)
 	if queryErr != nil {
 		panic(queryErr)
 	}
 
-	var lowDay models.Day
-	var lowDays []models.Day
+	var day models.Day
+	var days []models.Day
 
 	for rows.Next() {
-		scanErr := rows.Scan(&lowDay.Date, &lowDay.AvgRating)
+		scanErr := rows.Scan(&day.Date, &day.AvgRating)
 		if scanErr != nil {
 			panic(scanErr)
 		}
-		lowDays = append(lowDays, lowDay)
+		days = append(days, day)
 	}
 
-	return lowDays
+	return days
 }
 
 func (jr *JournalRepository) StandardDeviation(userID string, startDate string, endDate string) float32 {
@@ -139,36 +195,6 @@ func (jr *JournalRepository) JournalEntries(userID string) []models.JournalEntry
 	return journalEntries
 }
 
-func (jr *JournalRepository) HighDays(userID string, startDate string, endDate string) []models.Day {
-	query := `WITH first_query
-				  AS (SELECT Date(created_at) AS date,
-							 AVG(mood_rating) AS avg_rating
-					  FROM journal_entry
-					  WHERE user_id = ? 
-							AND Date(created_at) BETWEEN ? AND ?
-					  GROUP BY Date(created_at)),
-				  second_query
-				  AS (SELECT date, avg_rating
-					  FROM first_query
-					  WHERE avg_rating >= 6)
-				  SELECT date, avg_rating FROM second_query`
-
-	rows, err := jr.db.Query(query, userID, startDate, endDate)
-	if err != nil {
-		panic(err)
-	}
-
-	var highDay models.Day
-	var highDays []models.Day
-
-	for rows.Next() {
-		rows.Scan(&highDay.Date, &highDay.AvgRating)
-		highDays = append(highDays, highDay)
-	}
-
-	return highDays
-}
-
 func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.MoodTagFrequency {
 	query := `WITH first_query AS (
 				SELECT 
@@ -206,7 +232,7 @@ func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string,
 	var moodTagFrequencies []models.MoodTagFrequency
 
 	for rows.Next() {
-		scanErr := rows.Scan(&moodTagFrequency.MoodTag, &moodTagFrequency.Count, 
+		scanErr := rows.Scan(&moodTagFrequency.MoodTag, &moodTagFrequency.Count,
 			&moodTagFrequency.Percentage)
 
 		if scanErr != nil {

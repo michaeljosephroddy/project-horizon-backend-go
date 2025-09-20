@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 )
 
 type AnalyticsService struct {
@@ -47,19 +46,29 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 	moodTagFrequencies := service.journalRepository.MoodTagFrequencies(userID, startDate, endDate)
 	moodTagFrequenciesJSON, _ := json.MarshalIndent(moodTagFrequencies, "", "    ")
 	fmt.Println(string(moodTagFrequenciesJSON))
-	// TODO add to reponse object as a list of objects
 
-	lowDays := service.journalRepository.LowDays(userID, startDate, endDate)
-	lowDaysJSON, _ := json.MarshalIndent(lowDays, "", "    ")
-	fmt.Println(string(lowDaysJSON))
-	// TODO impplement longest low streak
-	// consecutive days where mood rating is 4 or below
-	// lowStreakCount := utils.StreakCount(lowDays)
-	// fmt.Println(lowStreakCount)
-
-	highDays := service.journalRepository.HighDays(userID, startDate, endDate)
+	// TODO fix this problem with >= 6 and <= 4 for sql
+	// i should be able to use the same func Days for both conditions
+	// make it work
+	highDays := service.journalRepository.Days(userID, startDate, endDate, ">= 6")
 	highDaysJSON, _ := json.MarshalIndent(highDays, "", "    ")
 	fmt.Println(string(highDaysJSON))
+
+	lowDays := service.journalRepository.Days(userID, startDate, endDate, "<= 4")
+	lowDaysJSON, _ := json.MarshalIndent(lowDays, "", "    ")
+	fmt.Println(string(lowDaysJSON))
+
+	// TODO same goes for Streaks
+	// fix this problem with >= 6 and <= 4 for sql
+	// I should be able to use the same func Streaks for both conditions
+	// make it work
+	highStreaks := service.journalRepository.Streaks(userID, startDate, endDate, ">= 6")
+	highStreaksJSON, _ := json.MarshalIndent(highStreaks, "", "    ")
+	fmt.Println(string(highStreaksJSON))
+
+	lowStreaks := service.journalRepository.Streaks(userID, startDate, endDate, "<= 4")
+	lowStreaksJSON, _ := json.MarshalIndent(lowStreaks, "", "    ")
+	fmt.Println(string(lowStreaksJSON))
 
 	// highStreakCount := utils.StreakCount(highDays)
 	// fmt.Println(highStreakCount)
