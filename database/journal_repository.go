@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 
+	"fmt"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
@@ -16,8 +17,8 @@ func NewJournalRepository(dbConnection *sql.DB) *JournalRepository {
 	}
 }
 
-func (jr *JournalRepository) Streaks(userID string, startDate string, endDate string, avgMoodRating string) []models.Streak {
-	query := `WITH first_query
+func (jr *JournalRepository) Streaks(userID string, startDate string, endDate string, operator string, val string) []models.Streak {
+	query := fmt.Sprintf(`WITH first_query
 				 AS (SELECT DATE(created_at) AS DATE,
 							AVG(mood_rating) AS avg_rating
 					 FROM   journal_entry
@@ -31,7 +32,7 @@ func (jr *JournalRepository) Streaks(userID string, startDate string, endDate st
 							  OVER(
 								ORDER BY DATE) AS rn
 					 FROM   first_query
-					 WHERE  avg_rating ?),
+					 WHERE  avg_rating %s ?),
 				 third_query
 				 AS (SELECT DATE                              AS start_date,
 							COUNT(*)                          AS streak_length,
@@ -46,33 +47,33 @@ func (jr *JournalRepository) Streaks(userID string, startDate string, endDate st
 			SELECT start_date,
 				   end_date,
 				   streak_length
-			FROM   fourth_query; `
+			FROM   fourth_query;`, operator)
 
-	rows, queryErr := jr.db.Query(query, userID, startDate, endDate, avgMoodRating)
+	rows, queryErr := jr.db.Query(query, userID, startDate, endDate, val)
 	if queryErr != nil {
 		panic(queryErr)
 	}
 
 	var streak models.Streak
-	var highStreaks []models.Streak
+	var streaks []models.Streak
 
 	for rows.Next() {
 		scanErr := rows.Scan(&streak.StartDate, &streak.EndDate, &streak.NumDays)
 		if scanErr != nil {
 			panic(scanErr)
 		}
-		highStreaks = append(highStreaks, streak)
+		streaks = append(streaks, streak)
 	}
 
-	/* if len(highStreaks) == 1{
+	if streaks == nil {
 		return make([]models.Streak, 0)
-	} */
+	}
 
-	return highStreaks
+	return streaks
 }
 
-func (jr *JournalRepository) Days(userID string, startDate string, endDate string, avgMoodRating string) []models.Day {
-	query := `WITH first_query
+func (jr *JournalRepository) Days(userID string, startDate string, endDate string, operator string, val string) []models.Day {
+	query := fmt.Sprintf(`WITH first_query
 				 AS (SELECT Date(created_at)     AS date,
 							AVG(mood_rating) AS avg_rating
 					 FROM   journal_entry
@@ -83,11 +84,11 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 				 AS (SELECT date,
 							avg_rating
 					 FROM   first_query
-					 WHERE  avg_rating ?)
+					 WHERE  avg_rating %s ?)
 			SELECT *
-			FROM   second_query;`
+			FROM   second_query;`, operator)
 
-	rows, queryErr := jr.db.Query(query, userID, startDate, endDate, avgMoodRating)
+	rows, queryErr := jr.db.Query(query, userID, startDate, endDate, val)
 	if queryErr != nil {
 		panic(queryErr)
 	}
@@ -101,6 +102,10 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 			panic(scanErr)
 		}
 		days = append(days, day)
+	}
+
+	if days == nil {
+		return make([]models.Day, 0)
 	}
 
 	return days
