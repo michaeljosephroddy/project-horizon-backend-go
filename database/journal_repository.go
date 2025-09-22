@@ -19,42 +19,43 @@ func NewJournalRepository(dbConnection *sql.DB) *JournalRepository {
 
 func (jr *JournalRepository) Streaks(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Streak {
 	query := fmt.Sprintf(`WITH qualifying_days AS (
-									SELECT Date(je.created_at) AS date,
-										   AVG(je.mood_rating) AS avg_rating,
-										   COUNT(CASE WHEN mt.mood_category_id = ? THEN 1 END) AS target_category_count,
-										   COUNT(mt.mood_tag_id) AS total_count,
-										   (COUNT(CASE WHEN mt.mood_category_id = ? THEN 1 END) * 100.0 / COUNT(mt.mood_tag_id)) AS target_percentage
-									FROM journal_entry je
-									JOIN journal_entry_mood_tag jemt ON je.journal_entry_id = jemt.journal_entry_id
-									JOIN mood_tag mt ON jemt.mood_tag_id = mt.mood_tag_id
-									WHERE je.user_id = ?
-										  AND Date(je.created_at) BETWEEN ? AND ?
-									GROUP BY Date(je.created_at)
-									HAVING avg_rating %s ? AND target_percentage >= ?
-									ORDER BY date
-								),
-								second_query AS (
-									SELECT date, avg_rating,
-										   ROW_NUMBER() OVER(ORDER BY date) AS rn
-									FROM qualifying_days
-								),
-								third_query AS (
-									SELECT date AS start_date,
-										   COUNT(*) AS streak_length,
-										   Date_add(date, interval - rn DAY) AS consec_groups
-									FROM second_query
-									GROUP BY consec_groups
-								),
-								fourth_query AS (
-									SELECT *,
-										   Date_add(start_date, interval + streak_length - 1 DAY) AS end_date
-									FROM third_query
-								)
-								SELECT start_date,
-									   end_date,
-									   streak_length
-								FROM fourth_query
-								ORDER BY start_date;`, operator)
+							SELECT Date(je.created_at) AS date,
+								   AVG(je.mood_rating) AS avg_rating,
+								   COUNT(CASE WHEN mt.mood_category_id = ? THEN 1 END) AS target_category_count,
+								   COUNT(mt.mood_tag_id) AS total_count,
+								   (COUNT(CASE WHEN mt.mood_category_id = ? THEN 1 END) * 100.0 / COUNT(mt.mood_tag_id)) AS target_percentage
+							FROM journal_entry je
+							JOIN journal_entry_mood_tag jemt ON je.journal_entry_id = jemt.journal_entry_id
+							JOIN mood_tag mt ON jemt.mood_tag_id = mt.mood_tag_id
+							WHERE je.user_id = ?
+								  AND Date(je.created_at) BETWEEN ? AND ?
+							GROUP BY Date(je.created_at)
+							HAVING avg_rating %s ? AND target_percentage >= ?
+							ORDER BY date
+						),
+						second_query AS (
+							SELECT date, avg_rating,
+								   ROW_NUMBER() OVER(ORDER BY date) AS rn
+							FROM qualifying_days
+						),
+						third_query AS (
+							SELECT date AS start_date,
+								   COUNT(*) AS streak_length,
+								   Date_add(date, interval - rn DAY) AS consec_groups
+							FROM second_query
+							GROUP BY consec_groups
+						),
+						fourth_query AS (
+							SELECT *,
+								   Date_add(start_date, interval + streak_length - 1 DAY) AS end_date
+								FROM third_query
+							)
+							SELECT start_date,
+								   end_date,
+								   streak_length
+							FROM fourth_query
+							WHERE streak_length >= 2
+							ORDER BY start_date;`, operator)
 
 	rows, queryErr := jr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
 	if queryErr != nil {
@@ -79,8 +80,13 @@ func (jr *JournalRepository) Streaks(userID string, startDate string, endDate st
 	return streaks
 }
 
+// TODO need to get mood tags and set it to the list of mood tags on each journalEntry
 func (jr *JournalRepository) Days(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
 	query := fmt.Sprintf(`SELECT   Date(je.created_at) AS date,
+							  je.created_at,
+							  je.journal_entry_id,
+							  je.mood_rating,
+							  je.note,
 							  Avg(je.mood_rating) AS avg_rating,
 							  Count(
 							  CASE
@@ -110,16 +116,21 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 
 	var day models.Day
 	var days []models.Day
+	var journalEntries []models.JournalEntry
+	var journalEntry models.JournalEntry
 	var dummy1, dummy2 int
 	var dummy3 float64
 
 	for rows.Next() {
-		scanErr := rows.Scan(&day.Date, &day.AvgRating, &dummy1, &dummy2, &dummy3)
+		scanErr := rows.Scan(&day.Date, &journalEntry.CreatedAt, &journalEntry.JournalEntryID, &journalEntry.MoodRating, &journalEntry.Note, &day.AvgRating, &dummy1, &dummy2, &dummy3)
 		if scanErr != nil {
 			panic(scanErr)
 		}
+		journalEntries = append(journalEntries, journalEntry)
 		days = append(days, day)
 	}
+
+	day.JournalEntries = journalEntries
 
 	if days == nil {
 		return make([]models.Day, 0)
