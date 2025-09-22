@@ -22,9 +22,6 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 
 	movingAverages := service.journalRepository.MovingAverages(userID, startDate, endDate)
 
-	// movingAveragesJSON, _ := json.MarshalIndent(movingAverages, "", "    ")
-	// fmt.Println(string(movingAveragesJSON))
-
 	trend := "constant"
 	if movingAverages[len(movingAverages)-1].ThreeDay > movingAverages[len(movingAverages)-2].ThreeDay {
 		trend = "increasing"
@@ -46,38 +43,23 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 	fmt.Println(stability)
 
 	moodTagFrequencies := service.journalRepository.MoodTagFrequencies(userID, startDate, endDate)
-	moodTagFrequenciesJSON, _ := json.MarshalIndent(moodTagFrequencies, "", "    ")
-	fmt.Println(string(moodTagFrequenciesJSON))
 
-	// TODO fix this problem with >= 6 and <= 4 for sql
-	// i should be able to use the same func Days for both conditions
-	// make it work
-	highDays := service.journalRepository.Days(userID, startDate, endDate, ">=", "6")
-	highDaysJSON, _ := json.MarshalIndent(highDays, "", "    ")
-	fmt.Println(string(highDaysJSON))
+	positiveDays := service.journalRepository.Days(userID, startDate, endDate, ">=", "6", "1", "50")
 
-	lowDays := service.journalRepository.Days(userID, startDate, endDate, "<=", "4")
-	lowDaysJSON, _ := json.MarshalIndent(lowDays, "", "    ")
-	fmt.Println(string(lowDaysJSON))
+	negativeDays := service.journalRepository.Days(userID, startDate, endDate, "<=", "4", "2", "50")
 
-	// TODO same goes for Streaks
-	// fix this problem with >= 6 and <= 4 for sql
-	// I should be able to use the same func Streaks for both conditions
-	// make it work
-	highStreaks := service.journalRepository.Streaks(userID, startDate, endDate, ">=", "6")
-	highStreaksJSON, _ := json.MarshalIndent(highStreaks, "", "    ")
-	fmt.Println(string(highStreaksJSON))
+	positiveStreaks := service.journalRepository.Streaks(userID, startDate, endDate, ">=", "6", "1", "50")
 
-	lowStreaks := service.journalRepository.Streaks(userID, startDate, endDate, "<=", "4")
-	lowStreaksJSON, _ := json.MarshalIndent(lowStreaks, "", "    ")
-	fmt.Println(string(lowStreaksJSON))
+	negativeStreaks := service.journalRepository.Streaks(userID, startDate, endDate, "<=", "4", "2", "50")
 
 	response := models.MetricsResponse{
-		Trend: trend,
-		Stability: stability,
+		Trend:            trend,
+		Stability:        stability,
 		MoodTagFrequency: moodTagFrequencies,
-		HighStreaks: highStreaks,
-		LowStreaks: lowStreaks,
+		PositiveStreaks:  positiveStreaks,
+		NegativeStreaks:  negativeStreaks,
+		PositiveDays:     positiveDays,
+		NegativeDays:     negativeDays,
 	}
 
 	fmt.Println("===================================")

@@ -1,106 +1,123 @@
 CREATE DATABASE IF NOT EXISTS project_horizon;
 USE project_horizon;
 
--- Optional: Clean slate (use only in dev)
+-- Optional: Clean slate (use only in dev) - drop children first, then parents
 DROP TABLE IF EXISTS journal_entry_mood_tag;
 DROP TABLE IF EXISTS user_medication;
-DROP TABLE IF EXISTS medication;
 DROP TABLE IF EXISTS journal_entry;
 DROP TABLE IF EXISTS mood_tag;
+DROP TABLE IF EXISTS mood_category;
+DROP TABLE IF EXISTS medication;
 DROP TABLE IF EXISTS user;
 
+-- User table
 CREATE TABLE IF NOT EXISTS user (
-    user_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Medications
 CREATE TABLE IF NOT EXISTS medication (
-    medication_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY,
+    medication_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS mood_tag (
-    mood_tag_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE
+-- Mood categories
+CREATE TABLE IF NOT EXISTS mood_category (
+    mood_category_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(20) NOT NULL UNIQUE,
+    description VARCHAR(100)
 );
 
+-- Mood tags
+CREATE TABLE IF NOT EXISTS mood_tag (
+    mood_tag_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    mood_category_id BIGINT UNSIGNED NOT NULL,
+    CONSTRAINT fk_mood_tag_category FOREIGN KEY (mood_category_id) REFERENCES mood_category(mood_category_id)
+);
+
+-- User medications
 CREATE TABLE IF NOT EXISTS user_medication (
-    user_medication_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY,
+    user_medication_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
     medication_id BIGINT UNSIGNED NOT NULL,
-    CONSTRAINT fk_um_user_medication FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
-    CONSTRAINT fk_um_medication FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE
+    CONSTRAINT fk_um_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_um_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE
 );
 
+-- Journal entries
 CREATE TABLE IF NOT EXISTS journal_entry (
-    journal_entry_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY,
+    journal_entry_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
-    mood_rating INT NOT NULL CHECK (mood_rating >= 1 AND mood_rating <= 10),
+    mood_rating INT NOT NULL CHECK (mood_rating BETWEEN 1 AND 10),
     note TEXT NOT NULL,
     created_at DATETIME NOT NULL,
     CONSTRAINT fk_journal_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
     INDEX idx_created_at (created_at)
 );
 
+-- Journal entry mood tags
 CREATE TABLE IF NOT EXISTS journal_entry_mood_tag (
-    journal_entry_mood_tag_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE PRIMARY KEY, 
+    journal_entry_mood_tag_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     journal_entry_id BIGINT UNSIGNED NOT NULL,
     mood_tag_id BIGINT UNSIGNED NOT NULL,
-    CONSTRAINT fk_jem_journal_entry FOREIGN KEY (journal_entry_id) REFERENCES journal_entry(journal_entry_id) ON DELETE CASCADE,
-    CONSTRAINT fk_jem_mood_tag FOREIGN KEY (mood_tag_id) REFERENCES mood_tag(mood_tag_id) ON DELETE CASCADE,
+    CONSTRAINT fk_jem_journal FOREIGN KEY (journal_entry_id) REFERENCES journal_entry(journal_entry_id) ON DELETE CASCADE,
+    CONSTRAINT fk_jem_tag FOREIGN KEY (mood_tag_id) REFERENCES mood_tag(mood_tag_id) ON DELETE CASCADE,
     INDEX idx_mood_tag (mood_tag_id)
 );
 
--- Reset auto increment counters
+-- Reset auto-increments
 ALTER TABLE user AUTO_INCREMENT = 1;
+ALTER TABLE mood_category AUTO_INCREMENT = 1;
 ALTER TABLE mood_tag AUTO_INCREMENT = 1;
 ALTER TABLE journal_entry AUTO_INCREMENT = 1;
 ALTER TABLE medication AUTO_INCREMENT = 1;
 ALTER TABLE user_medication AUTO_INCREMENT = 1;
 ALTER TABLE journal_entry_mood_tag AUTO_INCREMENT = 1;
 
--- Create a user for database access
+-- DB user
 CREATE USER IF NOT EXISTS 'demouser'@'localhost' IDENTIFIED BY 'demopassword';
 GRANT ALL PRIVILEGES ON project_horizon.* TO 'demouser'@'localhost';
 FLUSH PRIVILEGES;
 
--- Mock data for August 2025
+-- Mood categories
+INSERT INTO mood_category (name, description) VALUES
+('positive', 'Positive emotions and feelings'),
+('negative', 'Challenging or difficult emotions'),
+('neutral', 'Neutral or mixed emotional states'),
+('energy', 'Energy and physical state related moods'),
+('clinical', 'Clinical mood states related to bipolar disorder');
+
+-- Mood tags
+INSERT INTO mood_tag (name, mood_category_id) VALUES
+-- Positive
+('Happy', 1), ('Excited', 1), ('Calm', 1), ('Grateful', 1), ('Confident', 1),
+-- Negative
+('Sad', 2), ('Anxious', 2), ('Angry', 2), ('Frustrated', 2), ('Lonely', 2),
+-- Neutral
+('Content', 3), ('Restless', 3), ('Confused', 3), ('Bored', 3),
+-- Energy
+('Energetic', 4), ('Tired', 4),
+-- Clinical
+('Manic', 5), ('Hypomanic', 5), ('Depressed', 5), ('Mixed State', 5), ('Irritable', 5);
+
 -- Insert users
 INSERT INTO user (email, password_hash, created_at) VALUES
 ('alice@example.com', '$2y$10$example.hash.1', '2025-07-15 10:00:00'),
 ('bob@example.com', '$2y$10$example.hash.2', '2025-07-20 14:30:00'),
 ('carol@example.com', '$2y$10$example.hash.3', '2025-07-25 09:15:00');
 
--- Insert medications
+-- Medications
 INSERT INTO medication (name) VALUES
-('Sertraline'),
-('Fluoxetine'),
-('Escitalopram'),
-('Bupropion'),
-('Venlafaxine');
+('Sertraline'), ('Fluoxetine'), ('Escitalopram'), ('Bupropion'), ('Venlafaxine'),
+('Lithium'), ('Lamotrigine'), ('Quetiapine'), ('Aripiprazole'), ('Valproate');
 
--- Insert mood tags
-INSERT INTO mood_tag (name) VALUES
-('Happy'),
-('Sad'),
-('Anxious'),
-('Calm'),
-('Energetic'),
-('Tired'),
-('Focused'),
-('Overwhelmed'),
-('Content'),
-('Irritated');
-
--- Link users to medications
+-- Link users/medications
 INSERT INTO user_medication (user_id, medication_id) VALUES
-(1, 1), -- Alice takes Sertraline
-(1, 4), -- Alice takes Bupropion
-(2, 2), -- Bob takes Fluoxetine
-(3, 3), -- Carol takes Escitalopram
-(3, 5); -- Carol takes Venlafaxine
+(1, 1), (1, 6), (2, 2), (2, 7), (3, 3), (3, 8);
 
 -- Journal entries for August 2025 (31 days)
 INSERT INTO journal_entry (user_id, mood_rating, note, created_at) VALUES
@@ -259,159 +276,174 @@ INSERT INTO journal_entry (user_id, mood_rating, note, created_at) VALUES
 (2, 7, 'August conclusion satisfaction. Good month overall with growth, challenges overcome, and joy found.', '2025-08-31 21:00:00'),
 (3, 7, 'Perfect August ending! Grateful for the experiences and ready for new adventures in September.', '2025-08-31 20:45:00');
 
--- Mood tag associations for journal entries (complete associations for all 93 entries)
+-- Updated mood tag associations for journal entries with new mood IDs
 INSERT INTO journal_entry_mood_tag (journal_entry_id, mood_tag_id) VALUES
--- Day 1 entries (Aug 1)
-(1, 1), (1, 4), -- Happy, Calm
-(2, 9), -- Content  
-(3, 3), (3, 4), -- Anxious, Calm
+-- August 1, 2025
+(1, 1), (1, 15), -- Alice: Happy, Energetic (optimistic, great workout)
+(2, 11), (2, 14), -- Bob: Content, Bored (neutral, regular day)
+(3, 7), (3, 4), -- Carol: Anxious, Grateful (anxiety but grateful)
 
--- Day 2 entries (Aug 2)
-(4, 1), (4, 5), -- Happy, Energetic
-(5, 2), (5, 6), -- Sad, Tired
-(6, 1), (6, 9), -- Happy, Content
+-- August 2, 2025
+(4, 1), (4, 5), (4, 2), -- Alice: Happy, Confident, Excited (excellent day, accomplished)
+(5, 6), (5, 16), -- Bob: Sad, Tired (down, gloomy weather)
+(6, 1), (6, 11), -- Carol: Happy, Content (wonderful conversation)
 
--- Day 3 entries (Aug 3)
-(7, 4), (7, 9), -- Calm, Content
-(8, 4), (8, 1), -- Calm, Happy
-(9, 6), (9, 9), -- Tired, Content
+-- August 3, 2025
+(7, 3), (7, 11), -- Alice: Calm, Content (relaxed, productive)
+(8, 1), (8, 3), -- Bob: Happy, Calm (spirits lifted by walk)
+(9, 11), (9, 16), -- Carol: Content, Tired (busy but manageable)
 
--- Day 4 entries (Aug 4)
-(10, 1), (10, 5), -- Happy, Energetic
-(11, 9), (11, 7), -- Content, Focused
-(12, 1), (12, 5), -- Happy, Energetic
+-- August 4, 2025
+(10, 1), (10, 4), (10, 15), -- Alice: Happy, Grateful, Energetic (amazing sunrise hike)
+(11, 11), (11, 1), -- Bob: Content, Happy (productive day, small pleasures)
+(12, 1), (12, 2), -- Carol: Happy, Excited (family barbecue, pure joy)
 
--- Day 5 entries (Aug 5)
-(13, 2), (13, 6), -- Sad, Tired
-(14, 7), (14, 9), -- Focused, Content
-(15, 8), (15, 3), -- Overwhelmed, Anxious
+-- August 5, 2025
+(13, 6), (13, 16), -- Alice: Sad, Tired (Monday blues)
+(14, 11), (14, 5), -- Bob: Content, Confident (positive feedback)
+(15, 12), (15, 7), -- Carol: Restless, Anxious (overwhelmed with deadlines)
 
--- Day 6 entries (Aug 6)
-(16, 4), (16, 7), -- Calm, Focused
-(17, 9), -- Content
-(18, 4), (18, 7), -- Calm, Focused
+-- August 6, 2025
+(16, 1), (16, 3), -- Alice: Happy, Calm (found rhythm, yoga)
+(17, 11), -- Bob: Content (neutral day)
+(18, 3), (18, 11), -- Carol: Calm, Content (managed stress better)
 
--- Day 7 entries (Aug 7)
-(19, 5), (19, 1), -- Energetic, Happy
-(20, 1), (20, 9), -- Happy, Content
-(21, 4), (21, 9), -- Calm, Content
+-- August 7, 2025
+(19, 1), (19, 15), (19, 2), -- Alice: Happy, Energetic, Excited (great energy, teamwork)
+(20, 1), (20, 11), -- Bob: Happy, Content (positive, good laughs)
+(21, 1), (21, 3), -- Carol: Happy, Calm (good day, simple pleasures)
 
--- Day 8 entries (Aug 8)
-(22, 9), (22, 7), -- Content, Focused
-(23, 1), (23, 5), -- Happy, Energetic
-(24, 6), (24, 8), -- Tired, Overwhelmed
+-- August 8, 2025
+(22, 11), (22, 16), -- Alice: Content, Tired (ready for weekend)
+(23, 1), (23, 2), -- Bob: Happy, Excited (unexpected praise)
+(24, 16), (24, 11), -- Carol: Tired, Content (tired but pushed through)
 
--- Day 9 entries (Aug 9)
-(25, 1), (25, 5), -- Happy, Energetic
-(26, 9), (26, 6), -- Content, Tired
-(27, 7), (27, 9), -- Focused, Content
+-- August 9, 2025
+(25, 1), (25, 2), (25, 15), -- Alice: Happy, Excited, Energetic (FRIDAY celebration)
+(26, 11), (26, 1), -- Bob: Content, Happy (glad it's Friday)
+(27, 1), (27, 5), -- Carol: Happy, Confident (accomplished goals)
 
--- Day 10 entries (Aug 10)
-(28, 4), (28, 9), -- Calm, Content
-(29, 1), (29, 5), -- Happy, Energetic
-(30, 4), (30, 6), -- Calm, Tired
+-- August 10, 2025
+(28, 3), (28, 11), -- Alice: Calm, Content (relaxing Saturday)
+(29, 1), (29, 2), (29, 15), -- Bob: Happy, Excited, Energetic (farmers market adventure)
+(30, 3), (30, 11), -- Carol: Calm, Content (quiet, low-key)
 
--- Day 11 entries (Aug 11)
-(31, 1), (31, 9), -- Happy, Content
-(32, 1), (32, 4), -- Happy, Calm
-(33, 9), (33, 7), -- Content, Focused
+-- August 11, 2025
+(31, 1), (31, 11), -- Alice: Happy, Content (perfect Sunday)
+(32, 1), (32, 3), -- Bob: Happy, Calm (nice family calls)
+(33, 1), (33, 11), -- Carol: Happy, Content (quality time)
 
--- Day 12 entries (Aug 12)
-(34, 2), (34, 6), -- Sad, Tired
-(35, 7), (35, 9), -- Focused, Content
-(36, 8), (36, 3), -- Overwhelmed, Anxious
+-- August 12, 2025
+(34, 6), (34, 16), -- Alice: Sad, Tired (Monday withdrawal)
+(35, 11), (35, 5), -- Bob: Content, Confident (positive mindset)
+(36, 12), (36, 7), -- Carol: Restless, Anxious (Monday stress)
 
--- Day 13 entries (Aug 13)
-(37, 7), (37, 9), -- Focused, Content
-(38, 7), (38, 4), -- Focused, Calm
-(39, 4), (39, 7), -- Calm, Focused
+-- August 13, 2025
+(37, 1), (37, 5), -- Alice: Happy, Confident (productive, good collaboration)
+(38, 11), (38, 5), -- Bob: Content, Confident (making progress)
+(39, 5), (39, 11), -- Carol: Confident, Content (more in control)
 
--- Day 14 entries (Aug 14)
-(40, 1), (40, 5), -- Happy, Energetic
-(41, 1), (41, 7), -- Happy, Focused
-(42, 4), (42, 9), -- Calm, Content
+-- August 14, 2025
+(40, 1), (40, 15), (40, 2), -- Alice: Happy, Energetic, Excited (hump day excellence)
+(41, 1), (41, 2), -- Bob: Happy, Excited (breakthrough moment)
+(42, 11), (42, 5), -- Carol: Content, Confident (balanced)
 
--- Day 15 entries (Aug 15)
-(43, 7), (43, 9), -- Focused, Content
-(44, 9), -- Content
-(45, 1), (45, 5), -- Happy, Energetic
+-- August 15, 2025
+(43, 11), (43, 5), -- Alice: Content, Confident (completed tasks)
+(44, 11), -- Bob: Content (neutral day)
+(45, 1), (45, 2), -- Carol: Happy, Excited (great feedback)
 
--- Day 16 entries (Aug 16)
-(46, 1), (46, 5), -- Happy, Energetic
-(47, 1), (47, 9), -- Happy, Content
-(48, 6), (48, 9), -- Tired, Content
+-- August 16, 2025
+(46, 1), (46, 2), (46, 15), -- Alice: Happy, Excited, Energetic (Friday fantastic)
+(47, 1), (47, 4), -- Bob: Happy, Grateful (productive week)
+(48, 16), (48, 11), -- Carol: Tired, Content (exhausted but satisfied)
 
--- Day 17 entries (Aug 17)
-(49, 1), (49, 4), -- Happy, Calm
-(50, 1), (50, 5), -- Happy, Energetic
-(51, 4), (51, 9), -- Calm, Content
+-- August 17, 2025
+(49, 1), (49, 3), -- Alice: Happy, Calm (Saturday bliss, perfect balance)
+(50, 1), (50, 2), (50, 15), -- Bob: Happy, Excited, Energetic (new hiking trail)
+(51, 11), (51, 3), -- Carol: Content, Calm (balanced productivity)
 
--- Day 18 entries (Aug 18)
-(52, 4), (52, 9), -- Calm, Content
-(53, 4), (53, 9), -- Calm, Content
-(54, 1), (54, 9), -- Happy, Content
+-- August 18, 2025
+(52, 1), (52, 3), -- Alice: Happy, Calm (Sunday funday, recharged)
+(53, 3), (53, 11), -- Bob: Calm, Content (quiet Sunday, peace)
+(54, 1), (54, 4), -- Carol: Happy, Grateful (quality time, supported)
 
--- Day 19 entries (Aug 19)
-(55, 7), (55, 9), -- Focused, Content
-(56, 9), -- Content
-(57, 9), -- Content
+-- August 19, 2025
+(55, 5), (55, 11), -- Alice: Confident, Content (motivated, prepared)
+(56, 11), (56, 13), -- Bob: Content, Confused (trying new mindset)
+(57, 11), -- Carol: Content (middle ground)
 
--- Day 20 entries (Aug 20)
-(58, 1), (58, 5), -- Happy, Energetic
-(59, 1), (59, 7), -- Happy, Focused
-(60, 7), (60, 9), -- Focused, Content
+-- August 20, 2025
+(58, 1), (58, 5), -- Alice: Happy, Confident (triumph, momentum)
+(59, 1), (59, 2), -- Bob: Happy, Excited (inspiring conversation)
+(60, 5), (60, 11), -- Carol: Confident, Content (step by step progress)
 
--- Day 21 entries (Aug 21)
-(61, 1), (61, 5), -- Happy, Energetic
-(62, 7), (62, 9), -- Focused, Content
-(63, 1), (63, 7), -- Happy, Focused
+-- August 21, 2025
+(61, 1), (61, 15), -- Alice: Happy, Energetic (wonderful, flow state)
+(62, 11), (62, 5), -- Bob: Content, Confident (solid progress)
+(63, 1), (63, 5), -- Carol: Happy, Confident (accomplished)
 
--- Day 22 entries (Aug 22)
-(64, 6), (64, 8), -- Tired, Overwhelmed
-(65, 1), (65, 5), -- Happy, Energetic
-(66, 7), (66, 9), -- Focused, Content
+-- August 22, 2025
+(64, 16), (64, 12), -- Alice: Tired, Restless (energy dipping)
+(65, 1), (65, 2), -- Bob: Happy, Excited (unexpected good news)
+(66, 11), (66, 5), -- Carol: Content, Confident (steady momentum)
 
--- Day 23 entries (Aug 23)
-(67, 1), (67, 5), -- Happy, Energetic
-(68, 1), (68, 9), -- Happy, Content
-(69, 1), (69, 7), -- Happy, Focused
+-- August 23, 2025
+(67, 1), (67, 2), (67, 15), -- Alice: Happy, Excited, Energetic (Friday celebration)
+(68, 1), (68, 11), -- Bob: Happy, Content (ending strong)
+(69, 1), (69, 5), -- Carol: Happy, Confident (achieved goals)
 
--- Day 24 entries (Aug 24)
-(70, 4), (70, 9), -- Calm, Content
-(71, 1), (71, 5), -- Happy, Energetic
-(72, 4), (72, 9), -- Calm, Content
+-- August 24, 2025
+(70, 11), (70, 3), -- Alice: Content, Calm (satisfaction, balance)
+(71, 1), (71, 2), (71, 15), -- Bob: Happy, Excited, Energetic (amazing adventure)
+(72, 3), (72, 11), -- Carol: Calm, Content (low-key, simple)
 
--- Day 25 entries (Aug 25)
-(73, 1), (73, 9), -- Happy, Content
-(74, 4), (74, 9), -- Calm, Content
-(75, 1), (75, 5), -- Happy, Energetic
+-- August 25, 2025
+(73, 1), (73, 11), -- Alice: Happy, Content (perfect end, good company)
+(74, 11), (74, 3), -- Bob: Content, Calm (prepared, balance)
+(75, 1), (75, 2), -- Carol: Happy, Excited (optimism, energy restored)
 
--- Day 26 entries (Aug 26)
-(76, 7), (76, 9), -- Focused, Content
-(77, 9), -- Content
-(78, 5), (78, 7), -- Energetic, Focused
+-- August 26, 2025
+(76, 5), (76, 11), -- Alice: Confident, Content (mindset improving)
+(77, 11), -- Bob: Content (standard Monday)
+(78, 15), (78, 5), -- Carol: Energetic, Confident (momentum building)
 
--- Day 27 entries (Aug 27)
-(79, 1), (79, 7), -- Happy, Focused
-(80, 7), (80, 9), -- Focused, Content
-(81, 1), (81, 7), -- Happy, Focused
+-- August 27, 2025
+(79, 1), (79, 5), -- Alice: Happy, Confident (productivity peak)
+(80, 11), (80, 5), -- Bob: Content, Confident (steady progress)
+(81, 1), (81, 5), -- Carol: Happy, Confident (strong performance)
 
--- Day 28 entries (Aug 28)
-(82, 1), (82, 5), -- Happy, Energetic
-(83, 1), (83, 7), -- Happy, Focused
-(84, 7), (84, 9), -- Focused, Content
+-- August 28, 2025
+(82, 1), (82, 15), (82, 2), -- Alice: Happy, Energetic, Excited (Wednesday winner)
+(83, 1), (83, 5), -- Bob: Happy, Confident (breakthrough)
+(84, 11), (84, 5), -- Carol: Content, Confident (steady progress)
 
--- Day 29 entries (Aug 29)
-(85, 7), (85, 9), -- Focused, Content
-(86, 1), (86, 5), -- Happy, Energetic
-(87, 1), (87, 7), -- Happy, Focused
+-- August 29, 2025
+(85, 11), (85, 5), -- Alice: Content, Confident (focused finish)
+(86, 1), (86, 2), -- Bob: Happy, Excited (positive developments)
+(87, 1), (87, 5), -- Carol: Happy, Confident (accomplished goals)
 
--- Day 30 entries (Aug 30)
-(88, 1), (88, 5), -- Happy, Energetic
-(89, 1), (89, 9), -- Happy, Content
-(90, 1), (90, 7), -- Happy, Focused
+-- August 30, 2025
+(88, 1), (88, 2), (88, 15), -- Alice: Happy, Excited, Energetic (Friday finale fantastic)
+(89, 1), (89, 11), -- Bob: Happy, Content (positive growth)
+(90, 1), (90, 4), -- Carol: Happy, Grateful (reflecting on achievements)
 
--- Day 31 entries (Aug 31)
-(91, 1), (91, 9), -- Happy, Content
-(92, 1), (92, 9), -- Happy, Content
-(93, 1), (93, 9); -- Happy, Content
+-- August 31, 2025
+(91, 1), (91, 4), -- Alice: Happy, Grateful (celebration, reflection)
+(92, 11), (92, 4), -- Bob: Content, Grateful (good month overall)
+(93, 1), (93, 4); -- Carol: Happy, Grateful (perfect ending)
+
+-- Useful queries for mood tracking with categories
+-- View all mood tags with their categories:
+-- SELECT mt.name as mood, mc.name as category 
+-- FROM mood_tag mt 
+-- JOIN mood_category mc ON mt.mood_category_id = mc.mood_category_id 
+-- ORDER BY mc.name, mt.name;
+
+-- Get mood distribution by category:
+-- SELECT mc.name as category, COUNT(jemt.mood_tag_id) as usage_count
+-- FROM mood_category mc
+-- LEFT JOIN mood_tag mt ON mc.mood_category_id = mt.mood_category_id
+-- LEFT JOIN journal_entry_mood_tag jemt ON mt.mood_tag_id = jemt.mood_tag_id
+-- GROUP BY mc.mood_category_id, mc.name
+-- ORDER BY usage_count DESC;
