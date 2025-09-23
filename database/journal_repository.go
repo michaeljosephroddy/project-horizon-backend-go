@@ -2,8 +2,11 @@ package database
 
 import (
 	"database/sql"
+	"sort"
+	"strings"
 
 	"fmt"
+
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
@@ -81,68 +84,134 @@ func (jr *JournalRepository) Streaks(userID string, startDate string, endDate st
 }
 
 // TODO need to get mood tags and set it to the list of mood tags on each journalEntry
-func (jr *JournalRepository) Days(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
-	query := fmt.Sprintf(`SELECT   Date(je.created_at) AS date,
-							  je.created_at,
-							  je.journal_entry_id,
-							  je.mood_rating,
-							  je.note,
-							  Avg(je.mood_rating) AS avg_rating,
-							  Count(
-							  CASE
-									   WHEN mt.mood_category_id = ? THEN 1
-							  END)                  AS target_category_count,
-							  Count(mt.mood_tag_id) AS total_count,
-							  (Count(
-							  CASE
-									   WHEN mt.mood_category_id = ? THEN 1
-							  END) * 100.0 / Count(mt.mood_tag_id)) AS target_percentage
-					 FROM     journal_entry je
-					 JOIN     journal_entry_mood_tag jemt
-					 ON       je.journal_entry_id = jemt.journal_entry_id
-					 JOIN     mood_tag mt
-					 ON       jemt.mood_tag_id = mt.mood_tag_id
-					 WHERE    je.user_id = ?
-					 AND      Date(je.created_at) BETWEEN ? AND      ?
-					 GROUP BY Date(je.created_at)
-					 HAVING   avg_rating %s ?
-					 AND      target_percentage >= ?
-					 ORDER BY date;`, operator)
+func (r *JournalRepository) Days(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
+	query := fmt.Sprintf(`SELECT   date,
+							created_at,
+							journal_entry_id,
+							mood_rating,
+							note,
+							mood_tags,
+							mood_tag_ids,
+							daily_avg_rating,
+							daily_target_count,
+							daily_total_count,
+							daily_target_percentage
+				   FROM (
+					   SELECT   Date(je.created_at) AS date,
+								je.created_at,
+								je.journal_entry_id,
+								je.mood_rating,
+								je.note,
+								GROUP_CONCAT(mt.name ORDER BY mt.name SEPARATOR ', ') AS mood_tags,
+								GROUP_CONCAT(mt.mood_tag_id ORDER BY mt.mood_tag_id SEPARATOR ',') AS mood_tag_ids,
+								AVG(je.mood_rating) OVER (PARTITION BY Date(je.created_at)) AS daily_avg_rating,
+								SUM(CASE WHEN mt.mood_category_id = ? THEN 1 ELSE 0 END) OVER (PARTITION BY Date(je.created_at)) AS daily_target_count,
+								COUNT(mt.mood_tag_id) OVER (PARTITION BY Date(je.created_at)) AS daily_total_count,
+								(SUM(CASE WHEN mt.mood_category_id = ? THEN 1 ELSE 0 END) OVER (PARTITION BY Date(je.created_at)) * 100.0 / 
+								 COUNT(mt.mood_tag_id) OVER (PARTITION BY Date(je.created_at))) AS daily_target_percentage
+					   FROM     journal_entry je
+					   JOIN     journal_entry_mood_tag jemt
+					   ON       je.journal_entry_id = jemt.journal_entry_id
+					   JOIN     mood_tag mt
+					   ON       jemt.mood_tag_id = mt.mood_tag_id
+					   WHERE    je.user_id = ?
+					   AND      Date(je.created_at) BETWEEN ? AND ?
+					   GROUP BY Date(je.created_at), je.journal_entry_id, je.created_at, je.mood_rating, je.note
+				   ) AS daily_data
+				   WHERE daily_avg_rating %s ?
+				   AND   daily_target_percentage >= ?
+				   ORDER BY date, created_at;`, operator)
 
-	rows, queryErr := jr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
+	rows, queryErr := r.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
 	if queryErr != nil {
 		panic(queryErr)
 	}
+	defer rows.Close()
 
-	var day models.Day
-	var days []models.Day
-	var journalEntries []models.JournalEntry
-	var journalEntry models.JournalEntry
-	var dummy1, dummy2 int
-	var dummy3 float64
+	resultsByDate := make(map[string]*models.Day)
 
 	for rows.Next() {
-		scanErr := rows.Scan(&day.Date, &journalEntry.CreatedAt, &journalEntry.JournalEntryID, &journalEntry.MoodRating, &journalEntry.Note, &day.AvgRating, &dummy1, &dummy2, &dummy3)
-		if scanErr != nil {
-			panic(scanErr)
+		var dateStr string
+		var createdAt string
+		var journalEntryID int
+		var moodRating int
+		var note string
+		var moodTags string
+		var moodTagIDs string
+		var dailyAvgRating float64
+		var dailyTargetCount int
+		var dailyTotalCount int
+		var dailyTargetPercentage float64
+
+		err := rows.Scan(
+			&dateStr,
+			&createdAt,
+			&journalEntryID,
+			&moodRating,
+			&note,
+			&moodTags,
+			&moodTagIDs,
+			&dailyAvgRating,
+			&dailyTargetCount,
+			&dailyTotalCount,
+			&dailyTargetPercentage,
+		)
+		if err != nil {
+			panic(err)
 		}
-		journalEntries = append(journalEntries, journalEntry)
-		days = append(days, day)
+
+		// Create day if it doesn't exist
+		if _, exists := resultsByDate[dateStr]; !exists {
+			resultsByDate[dateStr] = &models.Day{
+				Date:      dateStr,
+				AvgRating: dailyAvgRating,
+				/* TargetCategoryCount: dailyTargetCount,
+				TotalCount:          dailyTotalCount,
+				TargetPercentage:    dailyTargetPercentage, */
+				JournalEntries: []models.JournalEntry{},
+			}
+		}
+
+		trimmed := strings.TrimSpace(moodTags)
+
+		parts := strings.Split(trimmed, ",")
+		for i, part := range parts {
+			parts[i] = strings.TrimSpace(part)
+		}
+		result := strings.Join(parts, ",")
+		tags := strings.Split(result, ",")
+
+		// Add journal entry to this day
+		entry := models.JournalEntry{
+			CreatedAt:      createdAt,
+			JournalEntryID: journalEntryID,
+			MoodRating:     moodRating,
+			Note:           note,
+			MoodTags:       tags,
+			// MoodTagIds:     moodTagIDs,
+		}
+
+		resultsByDate[dateStr].JournalEntries = append(resultsByDate[dateStr].JournalEntries, entry)
 	}
 
-	day.JournalEntries = journalEntries
-
-	if days == nil {
-		return make([]models.Day, 0)
+	// Convert map to slice
+	days := make([]models.Day, 0, len(resultsByDate))
+	for _, day := range resultsByDate {
+		days = append(days, *day)
 	}
+
+	// Sort days by date
+	sort.Slice(days, func(i, j int) bool {
+		return days[i].Date < days[j].Date
+	})
 
 	return days
 }
 
 func (jr *JournalRepository) StandardDeviation(userID string, startDate string, endDate string) float32 {
 	query := `SELECT STDDEV_POP(mood_rating) AS std_dev
-				FROM   journal_entry
-				WHERE  user_id = ? AND DATE(created_at) BETWEEN ? AND ?;`
+					FROM   journal_entry
+					WHERE  user_id = ? AND DATE(created_at) BETWEEN ? AND ?;`
 
 	rows, queryErr := jr.db.Query(query, userID, startDate, endDate)
 	if queryErr != nil {

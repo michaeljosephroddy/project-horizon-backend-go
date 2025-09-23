@@ -62,12 +62,8 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 		NegativeDays:     negativeDays,
 	}
 
-	fmt.Println("===================================")
-
 	reponseJSON, _ := json.MarshalIndent(response, "", "    ")
 	fmt.Println(string(reponseJSON))
-	// highStreakCount := utils.StreakCount(highDays)
-	// fmt.Println(highStreakCount)
 
 	return map[string]interface{}{"empty": "empty"}
 }
