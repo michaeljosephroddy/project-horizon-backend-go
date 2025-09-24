@@ -1,6 +1,7 @@
 package analytics
 
 import (
+	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 	"slices"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
@@ -55,7 +56,7 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 
 	positiveDays := service.journalRepository.Days(userID, startDate, endDate, ">=", "6", "1", "50")
 
-	// mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
+	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
 	// TODO find top mood tags for positive days
 	// i.e Happy is the most frequently recorded tag on good days
@@ -64,22 +65,26 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 
 	negativeDays := service.journalRepository.Days(userID, startDate, endDate, "<=", "4", "2", "50")
 
+	mtfNegativeDays := utils.MoodTagFrequencies(negativeDays)
+
 	positiveStreaks := service.journalRepository.Streaks(userID, startDate, endDate, ">=", "6", "1", "50")
 
 	negativeStreaks := service.journalRepository.Streaks(userID, startDate, endDate, "<=", "4", "2", "50")
 
 	response := models.MetricsResponse{
-		UserID:             userID,
-		PeriodStart:        startDate,
-		PeriodEnd:          endDate,
-		Trend:              trend,
-		Stability:          stability,
-		MoodTagFrequencies: moodTagFrequencies,
-		Top3Moods:          top3Moods,
-		PositiveStreaks:    positiveStreaks,
-		NegativeStreaks:    negativeStreaks,
-		PositiveDays:       positiveDays,
-		NegativeDays:       negativeDays,
+		UserID:               userID,
+		PeriodStart:          startDate,
+		PeriodEnd:            endDate,
+		Trend:                trend,
+		Stability:            stability,
+		MoodTagFrequencies:   moodTagFrequencies,
+		Top3Moods:            top3Moods,
+		TopMoodsPositiveDays: mtfPositiveDays,
+		TopMoodsNegativeDays: mtfNegativeDays,
+		PositiveStreaks:      positiveStreaks,
+		NegativeStreaks:      negativeStreaks,
+		PositiveDays:         positiveDays,
+		NegativeDays:         negativeDays,
 	}
 
 	// reponseJSON, _ := json.MarshalIndent(response, "", "    ")

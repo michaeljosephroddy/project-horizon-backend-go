@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
 func MatchURL(pattern string, url string) bool {
@@ -17,20 +19,41 @@ func GetUserIDFromPath(path string) string {
 	return splitPath[userIDIndex]
 }
 
-/* func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
-
-	var freq map[string]interface{}
-
+func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
+	var tags []string
 	for i := 0; i < len(data); i++ {
 		for _, val := range data[i].MoodTagFrequencies {
-
-			if val.Count > count {
-
-			}
-			freq["tag"] = val.MoodTag
-			freq["count"] = val.Count
-			freq["percentage"] = val.Percentage
+			tags = append(tags, val.MoodTag)
 		}
 	}
 
-} */
+	freq := make(map[string]float32)
+	for _, tag := range tags {
+		if _, exists := freq[tag]; !exists {
+			freq[tag] = 0.0
+		}
+		freq[tag] = freq[tag] + 1.0
+	}
+
+	var moodTagFrequencies []models.MoodTagFrequency
+	for key, val := range freq {
+		mtf := models.MoodTagFrequency{
+			Count:      int(val),
+			MoodTag:    key,
+			Percentage: (val / float32(len(tags))) * 100.0,
+		}
+		moodTagFrequencies = append(moodTagFrequencies, mtf)
+	}
+
+	slices.SortFunc(moodTagFrequencies, func(a, b models.MoodTagFrequency) int {
+		if a.Percentage > b.Percentage {
+			return -1
+		} else if a.Percentage < b.Percentage {
+			return 1
+		} else {
+			return 0
+		}
+	})
+
+	return moodTagFrequencies
+}
