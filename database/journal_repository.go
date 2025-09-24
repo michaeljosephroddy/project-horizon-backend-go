@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"slices"
 	"sort"
 	"strings"
 
@@ -34,8 +35,8 @@ func (jr *JournalRepository) Streaks(userID string, startDate string, endDate st
 
 	for rows.Next() {
 		scanErr := rows.Scan(
-			&streak.StartDate, 
-			&streak.EndDate, 
+			&streak.StartDate,
+			&streak.EndDate,
 			&streak.NumDays,
 		)
 		if scanErr != nil {
@@ -101,15 +102,15 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 		// Create day if it doesn't exist
 		if _, exists := resultsByDate[dateStr]; !exists {
 			resultsByDate[dateStr] = &models.Day{
-				Date:      dateStr,
-				AvgRating: dailyAvgRating,
+				Date:           dateStr,
+				DailyAvgRating: dailyAvgRating,
 				JournalEntries: []models.JournalEntry{},
 			}
 		}
 
 		var tags []string
 		mTags := strings.Split(moodTags, ",")
-		for _, t := range mTags{
+		for _, t := range mTags {
 			trimmed := strings.TrimSpace(t)
 			tags = append(tags, trimmed)
 		}
@@ -117,6 +118,7 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 		// Add journal entry to this day
 		entry := models.JournalEntry{
 			CreatedAt:      createdAt,
+			UserID:         userID,
 			JournalEntryID: journalEntryID,
 			MoodRating:     moodRating,
 			Note:           note,
@@ -136,6 +138,22 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 	sort.Slice(days, func(i, j int) bool {
 		return days[i].Date < days[j].Date
 	})
+
+	// get daily mood tag frequencies
+	for i := 0; i < len(days); i++ {
+		dailyMoodTagFrequencies := jr.MoodTagFrequencies(userID, days[i].Date, days[i].Date)
+		slices.SortFunc(dailyMoodTagFrequencies, func(a, b models.MoodTagFrequency) int {
+			if a.Percentage > b.Percentage {
+				return -1
+			} else if a.Percentage < b.Percentage {
+				return 1
+			} else {
+				return 0
+			}
+		})
+
+		days[i].MoodTagFrequencies = append(days[i].MoodTagFrequencies, dailyMoodTagFrequencies...)
+	}
 
 	return days
 }
@@ -173,7 +191,7 @@ func (jr *JournalRepository) MovingAverages(userID string, startDate string, end
 
 	for rows.Next() {
 		scanErr := rows.Scan(
-			&movingAverage.Date, 
+			&movingAverage.Date,
 			&movingAverage.ThreeDay,
 		)
 		if scanErr != nil {
@@ -199,10 +217,10 @@ func (jr *JournalRepository) JournalEntries(userID string) []models.JournalEntry
 
 	for rows.Next() {
 		scanErr := rows.Scan(
-			&journalEntry.JournalEntryID, 
+			&journalEntry.JournalEntryID,
 			&journalEntry.UserID,
-			&journalEntry.MoodRating, 
-			&journalEntry.Note, 
+			&journalEntry.MoodRating,
+			&journalEntry.Note,
 			&journalEntry.CreatedAt,
 		)
 		if scanErr != nil {
@@ -228,8 +246,8 @@ func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string,
 
 	for rows.Next() {
 		scanErr := rows.Scan(
-			&moodTagFrequency.MoodTag, 
-			&moodTagFrequency.Count, 
+			&moodTagFrequency.MoodTag,
+			&moodTagFrequency.Count,
 			&moodTagFrequency.Percentage,
 		)
 		if scanErr != nil {

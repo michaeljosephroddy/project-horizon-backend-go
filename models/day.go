@@ -1,7 +1,8 @@
 package models
 
 type Day struct {
-	Date           string         `json:"date"`
-	AvgRating      float64        `json:"avgRating"`
-	JournalEntries []JournalEntry `json:"JournalEntries"`
+	Date               string             `json:"date"`
+	DailyAvgRating     float64            `json:"dailyAvgRating"`
+	JournalEntries     []JournalEntry     `json:"journalEntries"`
+	MoodTagFrequencies []MoodTagFrequency `json:"moodTagFrequencies"`
 }

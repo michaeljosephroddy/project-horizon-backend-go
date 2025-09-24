@@ -1,8 +1,7 @@
 package analytics
 
 import (
-	"encoding/json"
-	"fmt"
+	"slices"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
@@ -18,7 +17,7 @@ func NewAnalyticsService(journalRepository *database.JournalRepository) *Analyti
 	}
 }
 
-func (service *AnalyticsService) Metrics(userID string, startDate string, endDate string) map[string]interface{} {
+func (service *AnalyticsService) Metrics(userID string, startDate string, endDate string) models.MetricsResponse {
 
 	movingAverages := service.journalRepository.MovingAverages(userID, startDate, endDate)
 
@@ -29,7 +28,6 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 	if movingAverages[len(movingAverages)-1].ThreeDay < movingAverages[len(movingAverages)-2].ThreeDay {
 		trend = "decreasing"
 	}
-	fmt.Println(trend)
 
 	standardDeviation := service.journalRepository.StandardDeviation(userID, startDate, endDate)
 
@@ -40,11 +38,29 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 	if standardDeviation >= 3 {
 		stability = "instable"
 	}
-	fmt.Println(stability)
 
 	moodTagFrequencies := service.journalRepository.MoodTagFrequencies(userID, startDate, endDate)
 
+	slices.SortFunc(moodTagFrequencies, func(a, b models.MoodTagFrequency) int {
+		if a.Percentage > b.Percentage {
+			return -1
+		} else if a.Percentage < b.Percentage {
+			return 1
+		} else {
+			return 0
+		}
+	})
+
+	top3Moods := moodTagFrequencies[:3]
+
 	positiveDays := service.journalRepository.Days(userID, startDate, endDate, ">=", "6", "1", "50")
+
+	// mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
+
+	// TODO find top mood tags for positive days
+	// i.e Happy is the most frequently recorded tag on good days
+	// i.e HAPPY and CONTENT are the most frequently recorded tags on good days
+	// i.e HAPPY, CONTENT and CALM are the most frequently recorded tags on good days
 
 	negativeDays := service.journalRepository.Days(userID, startDate, endDate, "<=", "4", "2", "50")
 
@@ -53,17 +69,21 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 	negativeStreaks := service.journalRepository.Streaks(userID, startDate, endDate, "<=", "4", "2", "50")
 
 	response := models.MetricsResponse{
-		Trend:            trend,
-		Stability:        stability,
-		MoodTagFrequency: moodTagFrequencies,
-		PositiveStreaks:  positiveStreaks,
-		NegativeStreaks:  negativeStreaks,
-		PositiveDays:     positiveDays,
-		NegativeDays:     negativeDays,
+		UserID:             userID,
+		PeriodStart:        startDate,
+		PeriodEnd:          endDate,
+		Trend:              trend,
+		Stability:          stability,
+		MoodTagFrequencies: moodTagFrequencies,
+		Top3Moods:          top3Moods,
+		PositiveStreaks:    positiveStreaks,
+		NegativeStreaks:    negativeStreaks,
+		PositiveDays:       positiveDays,
+		NegativeDays:       negativeDays,
 	}
 
-	reponseJSON, _ := json.MarshalIndent(response, "", "    ")
-	fmt.Println(string(reponseJSON))
+	// reponseJSON, _ := json.MarshalIndent(response, "", "    ")
+	// fmt.Println(string(reponseJSON))
 
-	return map[string]interface{}{"empty": "empty"}
+	return response
 }
