@@ -1,13 +1,14 @@
 package models
 
-type MetricsResponse struct {
+type Period struct {
 	UserID               string             `json:"userId"`
+	Granularity          string             `json:"granularity"`
 	PeriodStart          string             `json:"periodStart"`
 	PeriodEnd            string             `json:"periodEnd"`
 	Trend                string             `json:"moodTrend"`
 	Stability            string             `json:"moodStability"`
-	MoodTagFrequencies   []MoodTagFrequency `json:"moodTagFrquencies"`
-	Top3Moods            []MoodTagFrequency `json:"top3MoodTags"`
+	AvgMoodRatingPeriod  float64            `json:"avgMoodRatingPeriod"`
+	TopMoodsPeriod       []MoodTagFrequency `json:"topMoodsPeriod"`
 	TopMoodsPositiveDays []MoodTagFrequency `json:"topMoodsPositiveDays"`
 	TopMoodsNegativeDays []MoodTagFrequency `json:"topMoodsNegativeDays"`
 	PositiveStreaks      []Streak           `json:"positiveStreaks"`

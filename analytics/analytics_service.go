@@ -1,8 +1,11 @@
 package analytics
 
 import (
-	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 	"slices"
+	"time"
+
+	"fmt"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
@@ -20,29 +23,79 @@ func NewAnalyticsService(journalRepository *database.JournalRepository) *Analyti
 
 func (service *AnalyticsService) Metrics(userID string, startDate string, endDate string) models.MetricsResponse {
 
+	currentPeriod := service.period(userID, startDate, endDate)
+
+	// TODO calcuate previous period start and end dates
+	// the previous period length should be == to the current period length
+	// the previous period start date should be current period start - period length
+	// Assume today is the end of the current period
+
+	// TODO take a look at the moving averges trend implementation
+	// it should cover the period not just 3 days
+	// maybe daily is 3 days, weekly 7 days and monthly 28 days moving avg
+
+	layout := "2006-01-02"
+	startDateParsed, _ := time.Parse(layout, startDate)
+	endDateParsed, _ := time.Parse(layout, endDate)
+	diff := endDateParsed.Sub(startDateParsed)
+	numDays := int(diff.Hours() / 24)
+	previousStart := startDateParsed.AddDate(0, 0, -numDays)
+	previousEnd := startDateParsed.AddDate(0, 0, -1)
+
+	previousPeriod := service.period(userID, previousStart.Format(layout), previousEnd.Format(layout))
+	fmt.Println(previousPeriod)
+
+	previousPeriodDiffs := service.diffs(currentPeriod, previousPeriod)
+
+	response := models.MetricsResponse{
+		CurrentPeriod:      currentPeriod,
+		PreviousPeriodDiff: previousPeriodDiffs,
+	}
+
+	return response
+}
+func (service *AnalyticsService) period(userID string, startDate string, endDate string) models.Period {
+
 	movingAverages := service.journalRepository.MovingAverages(userID, startDate, endDate)
 
-	trend := "constant"
-	if movingAverages[len(movingAverages)-1].ThreeDay > movingAverages[len(movingAverages)-2].ThreeDay {
-		trend = "increasing"
-	}
-	if movingAverages[len(movingAverages)-1].ThreeDay < movingAverages[len(movingAverages)-2].ThreeDay {
-		trend = "decreasing"
+	var trend string
+
+	if len(movingAverages) >= 2 {
+		last := movingAverages[len(movingAverages)-1]
+		prev := movingAverages[len(movingAverages)-2]
+
+		switch {
+		case last.ThreeDay > prev.ThreeDay:
+			trend = "increasing"
+		case last.ThreeDay < prev.ThreeDay:
+			trend = "decreasing"
+		default:
+			trend = "flat"
+		}
+	} else {
+		trend = "not enough data"
 	}
 
 	standardDeviation := service.journalRepository.StandardDeviation(userID, startDate, endDate)
 
-	stability := "stable"
-	if standardDeviation >= 1.5 && standardDeviation < 3 {
+	var stability string
+
+	switch {
+	case standardDeviation == 0:
+		stability = "not enough data" // e.g., only 1 data point
+	case standardDeviation < 1.5:
+		stability = "stable"
+	case standardDeviation < 3:
 		stability = "moderate"
-	}
-	if standardDeviation >= 3 {
-		stability = "instable"
+	default:
+		stability = "unstable"
 	}
 
-	moodTagFrequencies := service.journalRepository.MoodTagFrequencies(userID, startDate, endDate)
+	avgMoodRatingPeriod := service.journalRepository.PeriodAvgMoodRating(userID, startDate, endDate)
 
-	slices.SortFunc(moodTagFrequencies, func(a, b models.MoodTagFrequency) int {
+	mtfPeriod := service.journalRepository.MoodTagFrequencies(userID, startDate, endDate)
+
+	slices.SortFunc(mtfPeriod, func(a, b models.MoodTagFrequency) int {
 		if a.Percentage > b.Percentage {
 			return -1
 		} else if a.Percentage < b.Percentage {
@@ -51,8 +104,6 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 			return 0
 		}
 	})
-
-	top3Moods := moodTagFrequencies[:3]
 
 	positiveDays := service.journalRepository.Days(userID, startDate, endDate, ">=", "6", "1", "50")
 
@@ -71,14 +122,34 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 
 	negativeStreaks := service.journalRepository.Streaks(userID, startDate, endDate, "<=", "4", "2", "50")
 
-	response := models.MetricsResponse{
+	layout := "2006-01-02" // Correct Go layout
+	startDateParsed, _ := time.Parse(layout, startDate)
+	endDateParsed, _ := time.Parse(layout, endDate)
+
+	diff := endDateParsed.Sub(startDateParsed)
+	numDays := int(diff.Hours() / 24)
+
+	var granularity string
+	switch {
+	case numDays <= 1:
+		granularity = "daily"
+	case numDays <= 7:
+		granularity = "weekly"
+	case numDays <= 28:
+		granularity = "monthly"
+	default:
+		granularity = "custom"
+	}
+
+	period := models.Period{
 		UserID:               userID,
+		Granularity:          granularity,
 		PeriodStart:          startDate,
 		PeriodEnd:            endDate,
 		Trend:                trend,
 		Stability:            stability,
-		MoodTagFrequencies:   moodTagFrequencies,
-		Top3Moods:            top3Moods,
+		AvgMoodRatingPeriod:  avgMoodRatingPeriod,
+		TopMoodsPeriod:       mtfPeriod,
 		TopMoodsPositiveDays: mtfPositiveDays,
 		TopMoodsNegativeDays: mtfNegativeDays,
 		PositiveStreaks:      positiveStreaks,
@@ -87,8 +158,11 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 		NegativeDays:         negativeDays,
 	}
 
-	// reponseJSON, _ := json.MarshalIndent(response, "", "    ")
-	// fmt.Println(string(reponseJSON))
+	return period
+}
 
-	return response
+func (servcie *AnalyticsService) diffs(currentPeriod models.Period, previousPeriod models.Period) models.PeriodDiff {
+
+	return models.PeriodDiff{}
+
 }

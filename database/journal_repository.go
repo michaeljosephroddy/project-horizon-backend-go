@@ -57,8 +57,8 @@ func (jr *JournalRepository) Streaks(userID string, startDate string, endDate st
 	return streaks
 }
 
-// TODO need to get mood tags and set it to the list of mood tags on each journalEntry
 func (jr *JournalRepository) Days(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
+
 	query := fmt.Sprintf(daysQueryStr, operator)
 
 	rows, queryErr := jr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
@@ -155,10 +155,14 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 		days[i].MoodTagFrequencies = append(days[i].MoodTagFrequencies, dailyMoodTagFrequencies...)
 	}
 
+	if days == nil {
+		return make([]models.Day, 0)
+	}
+
 	return days
 }
 
-func (jr *JournalRepository) StandardDeviation(userID string, startDate string, endDate string) float32 {
+func (jr *JournalRepository) StandardDeviation(userID string, startDate string, endDate string) float64 {
 
 	rows, queryErr := jr.db.Query(stdDevQueryStr, userID, startDate, endDate)
 	if queryErr != nil {
@@ -166,7 +170,7 @@ func (jr *JournalRepository) StandardDeviation(userID string, startDate string, 
 	}
 	defer rows.Close()
 
-	var standardDeviation float32
+	var standardDeviation sql.NullFloat64
 
 	for rows.Next() {
 		scanErr := rows.Scan(&standardDeviation)
@@ -175,7 +179,11 @@ func (jr *JournalRepository) StandardDeviation(userID string, startDate string, 
 		}
 	}
 
-	return standardDeviation
+	if !standardDeviation.Valid {
+		return 0.0
+	}
+
+	return standardDeviation.Float64
 }
 
 func (jr *JournalRepository) MovingAverages(userID string, startDate string, endDate string) []models.MovingAverage {
@@ -199,6 +207,10 @@ func (jr *JournalRepository) MovingAverages(userID string, startDate string, end
 		}
 
 		movingAverages = append(movingAverages, movingAverage)
+	}
+
+	if movingAverages == nil {
+		return make([]models.MovingAverage, 0)
 	}
 
 	return movingAverages
@@ -230,14 +242,18 @@ func (jr *JournalRepository) JournalEntries(userID string) []models.JournalEntry
 		journalEntries = append(journalEntries, journalEntry)
 	}
 
+	if journalEntries == nil {
+		return make([]models.JournalEntry, 0)
+	}
+
 	return journalEntries
 }
 
 func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.MoodTagFrequency {
 
-	rows, err := jr.db.Query(moodTagFrequenciesQueryStr, userID, startDate, endDate)
-	if err != nil {
-		panic(err)
+	rows, queryErr := jr.db.Query(moodTagFrequenciesQueryStr, userID, startDate, endDate)
+	if queryErr != nil {
+		panic(queryErr)
 	}
 	defer rows.Close()
 
@@ -257,5 +273,32 @@ func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string,
 		moodTagFrequencies = append(moodTagFrequencies, moodTagFrequency)
 	}
 
+	if moodTagFrequencies == nil {
+		return make([]models.MoodTagFrequency, 0)
+	}
+
 	return moodTagFrequencies
+}
+
+func (jr *JournalRepository) PeriodAvgMoodRating(userID string, startDate string, endDate string) float64 {
+
+	rows, queryErr := jr.db.Query(AvgMoodRatingPeriodQueryStr, userID, startDate, endDate)
+	if queryErr != nil {
+		panic(queryErr)
+	}
+	defer rows.Close()
+
+	var avgMoodRatingPeriod sql.NullFloat64
+	for rows.Next() {
+		scanErr := rows.Scan(&avgMoodRatingPeriod)
+		if scanErr != nil {
+			panic(scanErr)
+		}
+	}
+
+	if !avgMoodRatingPeriod.Valid {
+		return 0.0
+	}
+
+	return avgMoodRatingPeriod.Float64
 }

@@ -27,7 +27,7 @@ func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
 		}
 	}
 
-	freq := make(map[string]float32)
+	freq := make(map[string]float64)
 	for _, tag := range tags {
 		if _, exists := freq[tag]; !exists {
 			freq[tag] = 0.0
@@ -40,7 +40,7 @@ func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
 		mtf := models.MoodTagFrequency{
 			Count:      int(val),
 			MoodTag:    key,
-			Percentage: (val / float32(len(tags))) * 100.0,
+			Percentage: (val / float64(len(tags))) * 100.0,
 		}
 		moodTagFrequencies = append(moodTagFrequencies, mtf)
 	}

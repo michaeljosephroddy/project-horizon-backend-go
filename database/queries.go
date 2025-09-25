@@ -176,3 +176,16 @@ var moodTagFrequenciesQueryStr = `WITH first_query
                    NAME)
 SELECT *
 FROM   second_query;`
+
+var AvgMoodRatingPeriodQueryStr = `WITH first_query
+     AS (SELECT Date(created_at) AS date,
+                AVG(mood_rating) AS daily_avg_rating
+         FROM   journal_entry
+         WHERE  user_id = ? 
+                AND Date(created_at) BETWEEN ? AND ? 
+         GROUP  BY Date(created_at)),
+     second_query
+     AS (SELECT AVG(daily_avg_rating) AS period_mood_rating_avg
+         FROM   first_query)
+SELECT period_mood_rating_avg
+FROM   second_query;`
