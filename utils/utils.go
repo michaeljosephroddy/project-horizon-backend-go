@@ -55,5 +55,9 @@ func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
 		}
 	})
 
+	if moodTagFrequencies == nil {
+		return make([]models.MoodTagFrequency, 0)
+	}
+
 	return moodTagFrequencies
 }

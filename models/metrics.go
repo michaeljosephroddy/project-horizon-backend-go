@@ -1,6 +1,6 @@
 package models
 
-type Period struct {
+type Metrics struct {
 	UserID               string             `json:"userId"`
 	Granularity          string             `json:"granularity"`
 	PeriodStart          string             `json:"periodStart"`
@@ -15,5 +15,5 @@ type Period struct {
 	NegativeStreaks      []Streak           `json:"negativeStreaks"`
 	PositiveDays         []Day              `json:"positiveDays"`
 	NegativeDays         []Day              `json:"negativeDays"`
-	// TODO add in the other data points best day, worst day etc..
+	PeriodDiffs          PeriodDiff         `json:"periodDiffs"`
 }

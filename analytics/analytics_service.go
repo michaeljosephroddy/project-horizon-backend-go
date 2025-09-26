@@ -4,7 +4,6 @@ import (
 	"slices"
 	"time"
 
-	"fmt"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
@@ -21,9 +20,9 @@ func NewAnalyticsService(journalRepository *database.JournalRepository) *Analyti
 	}
 }
 
-func (service *AnalyticsService) Metrics(userID string, startDate string, endDate string) models.MetricsResponse {
+func (service *AnalyticsService) Metrics(userID string, startDate string, endDate string) models.Metrics {
 
-	currentPeriod := service.period(userID, startDate, endDate)
+	currentPeriodMetrics := service.periodAnalytics(userID, startDate, endDate)
 
 	// TODO calcuate previous period start and end dates
 	// the previous period length should be == to the current period length
@@ -42,19 +41,15 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 	previousStart := startDateParsed.AddDate(0, 0, -numDays)
 	previousEnd := startDateParsed.AddDate(0, 0, -1)
 
-	previousPeriod := service.period(userID, previousStart.Format(layout), previousEnd.Format(layout))
-	fmt.Println(previousPeriod)
+	previousPeriodMetrics := service.periodAnalytics(userID, previousStart.Format(layout), previousEnd.Format(layout))
 
-	previousPeriodDiffs := service.diffs(currentPeriod, previousPeriod)
+	periodDiffs := service.diffs(currentPeriodMetrics, previousPeriodMetrics)
 
-	response := models.MetricsResponse{
-		CurrentPeriod:      currentPeriod,
-		PreviousPeriodDiff: previousPeriodDiffs,
-	}
+	currentPeriodMetrics.PeriodDiffs = periodDiffs
 
-	return response
+	return currentPeriodMetrics
 }
-func (service *AnalyticsService) period(userID string, startDate string, endDate string) models.Period {
+func (service *AnalyticsService) periodAnalytics(userID string, startDate string, endDate string) models.Metrics {
 
 	movingAverages := service.journalRepository.MovingAverages(userID, startDate, endDate)
 
@@ -141,7 +136,7 @@ func (service *AnalyticsService) period(userID string, startDate string, endDate
 		granularity = "custom"
 	}
 
-	period := models.Period{
+	metrics := models.Metrics{
 		UserID:               userID,
 		Granularity:          granularity,
 		PeriodStart:          startDate,
@@ -156,12 +151,13 @@ func (service *AnalyticsService) period(userID string, startDate string, endDate
 		NegativeStreaks:      negativeStreaks,
 		PositiveDays:         positiveDays,
 		NegativeDays:         negativeDays,
+		PeriodDiffs:          models.PeriodDiff{},
 	}
 
-	return period
+	return metrics
 }
 
-func (servcie *AnalyticsService) diffs(currentPeriod models.Period, previousPeriod models.Period) models.PeriodDiff {
+func (servcie *AnalyticsService) diffs(currentPeriod models.Metrics, previousPeriod models.Metrics) models.PeriodDiff {
 
 	return models.PeriodDiff{}
 
