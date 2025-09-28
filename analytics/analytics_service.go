@@ -1,7 +1,9 @@
 package analytics
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
@@ -10,19 +12,19 @@ import (
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
-type AnalyticsService struct {
+type analyticsService struct {
 	journalRepository *database.JournalRepository
 }
 
-func NewAnalyticsService(journalRepository *database.JournalRepository) *AnalyticsService {
-	return &AnalyticsService{
+func NewAnalyticsService(journalRepository *database.JournalRepository) *analyticsService {
+	return &analyticsService{
 		journalRepository: journalRepository,
 	}
 }
 
-func (service *AnalyticsService) Metrics(userID string, startDate string, endDate string) models.Metrics {
+func (service *analyticsService) metrics(userID string, startDate string, endDate string) models.Metrics {
 
-	currentPeriodMetrics := service.periodAnalytics(userID, startDate, endDate)
+	current := service.analyze(userID, startDate, endDate)
 
 	// TODO calcuate previous period start and end dates
 	// the previous period length should be == to the current period length
@@ -38,18 +40,19 @@ func (service *AnalyticsService) Metrics(userID string, startDate string, endDat
 	endDateParsed, _ := time.Parse(layout, endDate)
 	diff := endDateParsed.Sub(startDateParsed)
 	numDays := int(diff.Hours() / 24)
-	previousStart := startDateParsed.AddDate(0, 0, -numDays)
-	previousEnd := startDateParsed.AddDate(0, 0, -1)
+	previousStart := startDateParsed.AddDate(0, 0, -numDays).Format(layout)
+	previousEnd := startDateParsed.AddDate(0, 0, -1).Format(layout)
 
-	previousPeriodMetrics := service.periodAnalytics(userID, previousStart.Format(layout), previousEnd.Format(layout))
+	previous := service.analyze(userID, previousStart, previousEnd)
 
-	periodDiffs := service.diffs(currentPeriodMetrics, previousPeriodMetrics)
+	diffs := service.diffs(current, previous)
 
-	currentPeriodMetrics.PeriodDiffs = periodDiffs
+	current.Diffs = diffs
 
-	return currentPeriodMetrics
+	return current
 }
-func (service *AnalyticsService) periodAnalytics(userID string, startDate string, endDate string) models.Metrics {
+
+func (service *analyticsService) analyze(userID string, startDate string, endDate string) models.Metrics {
 
 	movingAverages := service.journalRepository.MovingAverages(userID, startDate, endDate)
 
@@ -60,9 +63,9 @@ func (service *AnalyticsService) periodAnalytics(userID string, startDate string
 		prev := movingAverages[len(movingAverages)-2]
 
 		switch {
-		case last.ThreeDay > prev.ThreeDay:
+		case last.MovingAvg > prev.MovingAvg:
 			trend = "increasing"
-		case last.ThreeDay < prev.ThreeDay:
+		case last.MovingAvg < prev.MovingAvg:
 			trend = "decreasing"
 		default:
 			trend = "flat"
@@ -86,7 +89,7 @@ func (service *AnalyticsService) periodAnalytics(userID string, startDate string
 		stability = "unstable"
 	}
 
-	avgMoodRatingPeriod := service.journalRepository.PeriodAvgMoodRating(userID, startDate, endDate)
+	avgMoodRating := service.journalRepository.AvgMoodRating(userID, startDate, endDate)
 
 	mtfPeriod := service.journalRepository.MoodTagFrequencies(userID, startDate, endDate)
 
@@ -139,26 +142,127 @@ func (service *AnalyticsService) periodAnalytics(userID string, startDate string
 	metrics := models.Metrics{
 		UserID:               userID,
 		Granularity:          granularity,
-		PeriodStart:          startDate,
-		PeriodEnd:            endDate,
+		StartDate:            startDate,
+		EndDate:              endDate,
 		Trend:                trend,
+		StdDeviation:         standardDeviation,
 		Stability:            stability,
-		AvgMoodRatingPeriod:  avgMoodRatingPeriod,
-		TopMoodsPeriod:       mtfPeriod,
+		AvgMoodRating:        avgMoodRating,
+		TopMoods:             mtfPeriod,
 		TopMoodsPositiveDays: mtfPositiveDays,
 		TopMoodsNegativeDays: mtfNegativeDays,
 		PositiveStreaks:      positiveStreaks,
 		NegativeStreaks:      negativeStreaks,
 		PositiveDays:         positiveDays,
 		NegativeDays:         negativeDays,
-		PeriodDiffs:          models.PeriodDiff{},
+		Diffs:                models.Diff{},
 	}
 
 	return metrics
 }
 
-func (servcie *AnalyticsService) diffs(currentPeriod models.Metrics, previousPeriod models.Metrics) models.PeriodDiff {
+func (servcie *analyticsService) diffs(current models.Metrics, previous models.Metrics) models.Diff {
+	// [(New Value - Original Value) / Original Value] × 100
 
-	return models.PeriodDiff{}
+	var avgMoodChange float64
+	if previous.AvgMoodRating != 0.0 {
+		avgMoodChange = ((current.AvgMoodRating - previous.AvgMoodRating) / previous.AvgMoodRating) * 100
+	}
+
+	trendChange := fmt.Sprintf("%s -> %s", previous.Trend, current.Trend)
+
+	stabilityChange := fmt.Sprintf("%s -> %s", previous.Stability, current.Stability)
+
+	volatilityDelta := current.StdDeviation - previous.StdDeviation
+
+	var volatilityDeltaPercentage float64
+	if previous.StdDeviation != 0.0 {
+		volatilityDeltaPercentage = ((current.StdDeviation - previous.StdDeviation) / previous.StdDeviation) * 100
+	}
+
+	// TODO wirte utility method
+	var topMoodShift string
+	if len(previous.TopMoods) >= 1 && len(current.TopMoods) == 0 {
+		topMoodShift = fmt.Sprintf("%s -> %s", previous.TopMoods[0].MoodTag, "not enough data")
+	} else if len(previous.TopMoods) == 0 && len(current.TopMoods) >= 1 {
+		topMoodShift = fmt.Sprintf("%s -> %s", "not enough data", current.TopMoods[0].MoodTag)
+	} else if len(previous.TopMoods) >= 1 && len(current.TopMoods) >= 1 {
+		topMoodShift = fmt.Sprintf("%s -> %s", previous.TopMoods[0].MoodTag, current.TopMoods[0].MoodTag)
+	} else {
+		topMoodShift = "not enough data -> not enough data"
+	}
+
+	var topMoodDelta float64
+	if len(previous.TopMoods) != 0 {
+		var previousMood models.MoodTagFrequency
+		for _, mood := range previous.TopMoods {
+			if strings.EqualFold(mood.MoodTag, current.TopMoods[0].MoodTag) {
+				previousMood = mood
+				break
+			}
+		}
+		topMoodDelta = ((current.TopMoods[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
+	}
+
+	var topPositiveMoodChange string
+	if len(previous.TopMoodsPositiveDays) != 0 {
+		var previousMood models.MoodTagFrequency
+		for _, mood := range previous.TopMoodsPositiveDays {
+			if strings.EqualFold(mood.MoodTag, current.TopMoodsPositiveDays[0].MoodTag) {
+				previousMood = mood
+				break
+			}
+		}
+		percentChange := ((current.TopMoodsPositiveDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
+		topPositiveMoodChange = fmt.Sprintf("%s %f", current.TopMoodsPositiveDays[0].MoodTag, percentChange)
+	}
+	var topNegativeMoodChange string
+	if len(previous.TopMoodsNegativeDays) != 0 {
+		var previousMood models.MoodTagFrequency
+		for _, mood := range previous.TopMoodsNegativeDays {
+			if strings.EqualFold(mood.MoodTag, current.TopMoodsNegativeDays[0].MoodTag) {
+				previousMood = mood
+				break
+			}
+		}
+		percentChange := ((current.TopMoodsNegativeDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
+		topNegativeMoodChange = fmt.Sprintf("%s %f", current.TopMoodsNegativeDays[0].MoodTag, percentChange)
+	}
+
+	positiveDaysDelta := len(current.PositiveDays) - len(previous.PositiveDays)
+
+	negativeDaysDelta := len(current.NegativeDays) - len(previous.NegativeDays)
+
+	currentTotalEntries := servcie.journalRepository.JournalEntries(current.UserID, current.StartDate, current.EndDate)
+	previousTotalEntries := servcie.journalRepository.JournalEntries(previous.UserID, previous.StartDate, previous.EndDate)
+
+	var currentPositiveRatio float64
+	if len(current.PositiveDays) != 0 {
+		currentPositiveRatio = float64(len(currentTotalEntries)) / float64(len(current.PositiveDays))
+	}
+
+	var previoiusPositiveRatio float64
+	if len(previous.PositiveDays) != 0 {
+		previoiusPositiveRatio = float64(len(previousTotalEntries)) / float64(len(previous.PositiveDays))
+	}
+
+	positiveRatioChange := float64(currentPositiveRatio - previoiusPositiveRatio)
+
+	diffs := models.Diff{
+		AvgMoodChange:             avgMoodChange,
+		TrendChange:               trendChange,
+		StabilityChange:           stabilityChange,
+		VolatilityDelta:           volatilityDelta,
+		VolatilityDeltaPercentage: volatilityDeltaPercentage,
+		TopMoodShift:              topMoodShift,
+		TopMoodDelta:              topMoodDelta,
+		TopPositiveMoodChange:     topPositiveMoodChange,
+		TopNegativeMoodChange:     topNegativeMoodChange,
+		PositiveDaysDelta:         positiveDaysDelta,
+		NegativeDaysDelta:         negativeDaysDelta,
+		PositiveRatioChange:       positiveRatioChange,
+	}
+
+	return diffs
 
 }

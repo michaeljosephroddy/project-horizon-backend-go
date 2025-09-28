@@ -1,7 +1,7 @@
 package database
 
 
-var streaksQueryStr = `WITH qualifying_days AS
+var streaksQuery = `WITH qualifying_days AS
 (
          SELECT   date,
                   created_at,
@@ -72,7 +72,7 @@ FROM     fourth_query
 WHERE    streak_length >= 2
 ORDER BY start_date;`
 
-var daysQueryStr = `SELECT   date,
+var daysQuery = `SELECT   date,
          created_at,
          journal_entry_id,
          mood_rating,
@@ -120,12 +120,12 @@ AND      daily_target_percentage >= ?
 ORDER BY date,
          created_at;`
 
-var stdDevQueryStr = `SELECT Stddev_pop(mood_rating) AS std_dev
+var stdDevQuery = `SELECT Stddev_pop(mood_rating) AS std_dev
 FROM   journal_entry
 WHERE  user_id = ?
        AND Date(created_at) BETWEEN ? AND ?;`
 
-var movingAvgQueryStr = `WITH first_query
+var movingAvgQuery = `WITH first_query
      AS (SELECT DATE(created_at) AS DATE,
                 Avg(mood_rating) AS daily_avg
          FROM   journal_entry
@@ -143,11 +143,11 @@ SELECT *
 FROM   second_query
 ORDER  BY DATE;`
 
-var journalEntriesQueryStr = `SELECT *
+var journalEntriesQuery = `SELECT *
 FROM   journal_entry
-WHERE  user_id = ? `
+WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?`
 
-var moodTagFrequenciesQueryStr = `WITH first_query
+var moodTagFrequenciesQuery = `WITH first_query
      AS (SELECT je.journal_entry_id,
                 jem.mood_tag_id,
                 mt.NAME,
@@ -177,7 +177,7 @@ var moodTagFrequenciesQueryStr = `WITH first_query
 SELECT *
 FROM   second_query;`
 
-var AvgMoodRatingPeriodQueryStr = `WITH first_query
+var AvgMoodRatingQuery = `WITH first_query
      AS (SELECT Date(created_at) AS date,
                 AVG(mood_rating) AS daily_avg_rating
          FROM   journal_entry

@@ -4,5 +4,5 @@ type Streak struct {
 	StartDate string `json:"startDate"`
 	EndDate   string `json:"endDate"`
 	NumDays   int    `json:"numDays"`
-	Days      []Day    `json:"days"`
+	Days      []Day  `json:"days"`
 }

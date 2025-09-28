@@ -2,20 +2,21 @@ package analytics
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 	"net/http"
 )
 
 type AnalyticsHandler struct {
-	AnalyticsService *AnalyticsService
+	analyticsService *analyticsService
 }
 
 // TODO need to come up with a better regexp
 var metricsRegexp string = `^/analytics/users/([0-9]+)/metrics$`
 
-func NewAnalyticsHandler(analyticsService *AnalyticsService) *AnalyticsHandler {
+func NewAnalyticsHandler(analyticsService *analyticsService) *AnalyticsHandler {
 	return &AnalyticsHandler{
-		AnalyticsService: analyticsService,
+		analyticsService: analyticsService,
 	}
 }
 
@@ -27,8 +28,11 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 		startDate := request.URL.Query().Get("startDate")
 		endDate := request.URL.Query().Get("endDate")
 
-		result := handler.AnalyticsService.Metrics(userID, startDate, endDate)
+		result := handler.analyticsService.metrics(userID, startDate, endDate)
+		fmt.Printf("DEBUG struct: %+v\n", result)
 		body, _ := json.Marshal(result)
+
+		fmt.Println("DEBUG json:", string(body))
 
 		writer.Header().Set("Content-Type", "application/json")
 		writer.Write(body)
