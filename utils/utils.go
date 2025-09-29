@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
+	"time"
 )
 
 func MatchURL(pattern string, url string) bool {
@@ -60,4 +61,28 @@ func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
 	}
 
 	return moodTagFrequencies
+}
+
+func FindMood(a, b models.Metrics) models.MoodTagFrequency {
+	var previousMood models.MoodTagFrequency
+	for _, mood := range b.TopMoodsPositiveDays {
+		if strings.EqualFold(mood.MoodTag, a.TopMoodsPositiveDays[0].MoodTag) {
+			previousMood = mood
+			break
+		}
+	}
+
+	return previousMood
+}
+
+func CalculatePreviousDates(startDate string, endDate string) (string, string) {
+	layout := "2006-01-02"
+	startDateParsed, _ := time.Parse(layout, startDate)
+	endDateParsed, _ := time.Parse(layout, endDate)
+	diff := endDateParsed.Sub(startDateParsed)
+	numDays := int(diff.Hours() / 24)
+	previousStart := startDateParsed.AddDate(0, 0, -numDays).Format(layout)
+	previousEnd := startDateParsed.AddDate(0, 0, -1).Format(layout)
+
+	return previousStart, previousEnd
 }

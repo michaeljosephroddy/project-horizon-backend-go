@@ -3,7 +3,6 @@ package analytics
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
@@ -26,22 +25,7 @@ func (service *analyticsService) metrics(userID string, startDate string, endDat
 
 	current := service.analyze(userID, startDate, endDate)
 
-	// TODO calcuate previous period start and end dates
-	// the previous period length should be == to the current period length
-	// the previous period start date should be current period start - period length
-	// Assume today is the end of the current period
-
-	// TODO take a look at the moving averges trend implementation
-	// it should cover the period not just 3 days
-	// maybe daily is 3 days, weekly 7 days and monthly 28 days moving avg
-
-	layout := "2006-01-02"
-	startDateParsed, _ := time.Parse(layout, startDate)
-	endDateParsed, _ := time.Parse(layout, endDate)
-	diff := endDateParsed.Sub(startDateParsed)
-	numDays := int(diff.Hours() / 24)
-	previousStart := startDateParsed.AddDate(0, 0, -numDays).Format(layout)
-	previousEnd := startDateParsed.AddDate(0, 0, -1).Format(layout)
+	previousStart, previousEnd := utils.CalculatePreviousDates(startDate, endDate)
 
 	previous := service.analyze(userID, previousStart, previousEnd)
 
@@ -56,11 +40,12 @@ func (service *analyticsService) analyze(userID string, startDate string, endDat
 
 	movingAverages := service.journalRepository.MovingAverages(userID, startDate, endDate)
 
+	var movingAvg float64
 	var trend string
-
 	if len(movingAverages) >= 2 {
 		last := movingAverages[len(movingAverages)-1]
 		prev := movingAverages[len(movingAverages)-2]
+		movingAvg = last.MovingAvg
 
 		switch {
 		case last.MovingAvg > prev.MovingAvg:
@@ -104,8 +89,10 @@ func (service *analyticsService) analyze(userID string, startDate string, endDat
 	})
 
 	positiveDays := service.journalRepository.Days(userID, startDate, endDate, ">=", "6", "1", "50")
-
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
+
+	neutralDays := service.journalRepository.Days(userID, startDate, endDate, "=", "5", "3", "50")
+	mtfNeutralDays := utils.MoodTagFrequencies(neutralDays)
 
 	// TODO find top mood tags for positive days
 	// i.e Happy is the most frequently recorded tag on good days
@@ -113,12 +100,18 @@ func (service *analyticsService) analyze(userID string, startDate string, endDat
 	// i.e HAPPY, CONTENT and CALM are the most frequently recorded tags on good days
 
 	negativeDays := service.journalRepository.Days(userID, startDate, endDate, "<=", "4", "2", "50")
-
 	mtfNegativeDays := utils.MoodTagFrequencies(negativeDays)
+
+	clinicalDays := service.journalRepository.Days(userID, startDate, endDate, ">=", "1", "5", "50")
+	mtfClinicalDays := utils.MoodTagFrequencies(clinicalDays)
 
 	positiveStreaks := service.journalRepository.Streaks(userID, startDate, endDate, ">=", "6", "1", "50")
 
+	neutralStreaks := service.journalRepository.Streaks(userID, startDate, endDate, "=", "5", "3", "50")
+
 	negativeStreaks := service.journalRepository.Streaks(userID, startDate, endDate, "<=", "4", "2", "50")
+
+	clinicalStreaks := service.journalRepository.Streaks(userID, startDate, endDate, ">=", "1", "5", "50")
 
 	layout := "2006-01-02" // Correct Go layout
 	startDateParsed, _ := time.Parse(layout, startDate)
@@ -129,12 +122,12 @@ func (service *analyticsService) analyze(userID string, startDate string, endDat
 
 	var granularity string
 	switch {
-	case numDays <= 1:
-		granularity = "daily"
 	case numDays <= 7:
 		granularity = "weekly"
 	case numDays <= 28:
 		granularity = "monthly"
+	case numDays <= 84:
+		granularity = "3-months"
 	default:
 		granularity = "custom"
 	}
@@ -144,40 +137,44 @@ func (service *analyticsService) analyze(userID string, startDate string, endDat
 		Granularity:          granularity,
 		StartDate:            startDate,
 		EndDate:              endDate,
+		MovingAvg:            movingAvg,
 		Trend:                trend,
 		StdDeviation:         standardDeviation,
 		Stability:            stability,
 		AvgMoodRating:        avgMoodRating,
 		TopMoods:             mtfPeriod,
 		TopMoodsPositiveDays: mtfPositiveDays,
+		TopMoodsNeutralDays:  mtfNeutralDays,
 		TopMoodsNegativeDays: mtfNegativeDays,
+		TopMoodsClinicalDays: mtfClinicalDays,
 		PositiveStreaks:      positiveStreaks,
+		NeutralStreaks:       neutralStreaks,
 		NegativeStreaks:      negativeStreaks,
+		ClinicalStreaks:      clinicalStreaks,
 		PositiveDays:         positiveDays,
+		NeutralDays:          neutralDays,
 		NegativeDays:         negativeDays,
+		ClinicalDays:         clinicalDays,
 		Diffs:                models.Diff{},
 	}
 
 	return metrics
 }
 
-func (servcie *analyticsService) diffs(current models.Metrics, previous models.Metrics) models.Diff {
-	// [(New Value - Original Value) / Original Value] × 100
+func (service *analyticsService) diffs(current models.Metrics, previous models.Metrics) models.Diff {
 
-	var avgMoodChange float64
+	var avgMoodPercentChange float64
 	if previous.AvgMoodRating != 0.0 {
-		avgMoodChange = ((current.AvgMoodRating - previous.AvgMoodRating) / previous.AvgMoodRating) * 100
+		avgMoodPercentChange = ((current.AvgMoodRating - previous.AvgMoodRating) / previous.AvgMoodRating) * 100
 	}
 
-	trendChange := fmt.Sprintf("%s -> %s", previous.Trend, current.Trend)
+	trendShift := fmt.Sprintf("%s -> %s", previous.Trend, current.Trend)
 
-	stabilityChange := fmt.Sprintf("%s -> %s", previous.Stability, current.Stability)
+	stabilityShift := fmt.Sprintf("%s -> %s", previous.Stability, current.Stability)
 
-	volatilityDelta := current.StdDeviation - previous.StdDeviation
-
-	var volatilityDeltaPercentage float64
+	var stabilityPercentChange float64
 	if previous.StdDeviation != 0.0 {
-		volatilityDeltaPercentage = ((current.StdDeviation - previous.StdDeviation) / previous.StdDeviation) * 100
+		stabilityPercentChange = ((current.StdDeviation - previous.StdDeviation) / previous.StdDeviation) * 100
 	}
 
 	// TODO wirte utility method
@@ -192,75 +189,69 @@ func (servcie *analyticsService) diffs(current models.Metrics, previous models.M
 		topMoodShift = "not enough data -> not enough data"
 	}
 
-	var topMoodDelta float64
+	var topMoodPercentChange string
 	if len(previous.TopMoods) != 0 {
-		var previousMood models.MoodTagFrequency
-		for _, mood := range previous.TopMoods {
-			if strings.EqualFold(mood.MoodTag, current.TopMoods[0].MoodTag) {
-				previousMood = mood
-				break
-			}
-		}
-		topMoodDelta = ((current.TopMoods[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
+		previousMood := utils.FindMood(current, previous)
+		topMoodPercentChange = fmt.Sprintf("%s %f", current.TopMoods[0].MoodTag, ((current.TopMoods[0].Percentage-previousMood.Percentage)/previousMood.Percentage)*100)
 	}
 
-	var topPositiveMoodChange string
+	var topMoodPositiveDaysPercentChange string
 	if len(previous.TopMoodsPositiveDays) != 0 {
-		var previousMood models.MoodTagFrequency
-		for _, mood := range previous.TopMoodsPositiveDays {
-			if strings.EqualFold(mood.MoodTag, current.TopMoodsPositiveDays[0].MoodTag) {
-				previousMood = mood
-				break
-			}
-		}
+		previousMood := utils.FindMood(current, previous)
 		percentChange := ((current.TopMoodsPositiveDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
-		topPositiveMoodChange = fmt.Sprintf("%s %f", current.TopMoodsPositiveDays[0].MoodTag, percentChange)
+		topMoodPositiveDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsPositiveDays[0].MoodTag, percentChange)
 	}
-	var topNegativeMoodChange string
+
+	var topMoodNeutralDaysPercentChange string
+	if len(previous.TopMoodsNeutralDays) != 0 {
+		previousMood := utils.FindMood(current, previous)
+		percentChange := ((current.TopMoodsNeutralDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
+		topMoodNeutralDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsNeutralDays[0].MoodTag, percentChange)
+	}
+
+	var topMoodNegativeDaysPercentChange string
 	if len(previous.TopMoodsNegativeDays) != 0 {
-		var previousMood models.MoodTagFrequency
-		for _, mood := range previous.TopMoodsNegativeDays {
-			if strings.EqualFold(mood.MoodTag, current.TopMoodsNegativeDays[0].MoodTag) {
-				previousMood = mood
-				break
-			}
-		}
+		previousMood := utils.FindMood(current, previous)
 		percentChange := ((current.TopMoodsNegativeDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
-		topNegativeMoodChange = fmt.Sprintf("%s %f", current.TopMoodsNegativeDays[0].MoodTag, percentChange)
+		topMoodNegativeDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsNegativeDays[0].MoodTag, percentChange)
 	}
 
-	positiveDaysDelta := len(current.PositiveDays) - len(previous.PositiveDays)
-
-	negativeDaysDelta := len(current.NegativeDays) - len(previous.NegativeDays)
-
-	currentTotalEntries := servcie.journalRepository.JournalEntries(current.UserID, current.StartDate, current.EndDate)
-	previousTotalEntries := servcie.journalRepository.JournalEntries(previous.UserID, previous.StartDate, previous.EndDate)
-
-	var currentPositiveRatio float64
-	if len(current.PositiveDays) != 0 {
-		currentPositiveRatio = float64(len(currentTotalEntries)) / float64(len(current.PositiveDays))
+	var topMoodClinicalDaysPercentChange string
+	if len(previous.TopMoodsClinicalDays) != 0 {
+		previousMood := utils.FindMood(current, previous)
+		percentChange := ((current.TopMoodsClinicalDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
+		topMoodClinicalDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsClinicalDays[0].MoodTag, percentChange)
 	}
 
-	var previoiusPositiveRatio float64
-	if len(previous.PositiveDays) != 0 {
-		previoiusPositiveRatio = float64(len(previousTotalEntries)) / float64(len(previous.PositiveDays))
-	}
+	positiveDaysChange := len(current.PositiveDays) - len(previous.PositiveDays)
+	neutralDaysChange := len(current.NeutralDays) - len(previous.NeutralDays)
+	negativeDaysChange := len(current.NegativeDays) - len(previous.NegativeDays)
+	clinicalDaysChange := len(current.ClinicalDays) - len(previous.ClinicalDays)
 
-	positiveRatioChange := float64(currentPositiveRatio - previoiusPositiveRatio)
+	longestPositiveStreakChange := len(current.PositiveStreaks) - len(previous.PositiveStreaks)
+	longestNeutralStreakChange := len(current.NeutralStreaks) - len(previous.NeutralStreaks)
+	longestNegativeStreakChange := len(current.NegativeStreaks) - len(previous.NegativeStreaks)
+	longestClinicalStreakChange := len(current.ClinicalStreaks) - len(previous.ClinicalStreaks)
 
 	diffs := models.Diff{
-		AvgMoodChange:             avgMoodChange,
-		TrendChange:               trendChange,
-		StabilityChange:           stabilityChange,
-		VolatilityDelta:           volatilityDelta,
-		VolatilityDeltaPercentage: volatilityDeltaPercentage,
-		TopMoodShift:              topMoodShift,
-		TopMoodDelta:              topMoodDelta,
-		TopPositiveMoodChange:     topPositiveMoodChange,
-		TopNegativeMoodChange:     topNegativeMoodChange,
-		PositiveDaysDelta:         positiveDaysDelta,
-		NegativeDaysDelta:         negativeDaysDelta,
-		PositiveRatioChange:       positiveRatioChange,
+		AvgMoodPercentChange:             avgMoodPercentChange,
+		TrendShift:                       trendShift,
+		StabilityShift:                   stabilityShift,
+		StabilityPercentChange:           stabilityPercentChange,
+		TopMoodShift:                     topMoodShift,
+		TopMoodPercentChange:             topMoodPercentChange,
+		TopMoodPositiveDaysPercentChange: topMoodPositiveDaysPercentChange,
+		TopMoodNeutralDaysPercentChange:  topMoodNeutralDaysPercentChange,
+		TopMoodNegativeDaysPercentChange: topMoodNegativeDaysPercentChange,
+		TopMoodClinicalDaysPercentChange: topMoodClinicalDaysPercentChange,
+		PositiveDaysChange:               positiveDaysChange,
+		NeutralDaysChange:                neutralDaysChange,
+		NegativeDaysChange:               negativeDaysChange,
+		ClinicalDaysChange:               clinicalDaysChange,
+		LongestPositiveStreakChange:      longestPositiveStreakChange,
+		LongestNeutralStreakChange:       longestNeutralStreakChange,
+		LongestNegativeStreakChange:      longestNegativeStreakChange,
+		LongestClinicalStreakChange:      longestClinicalStreakChange,
 	}
 
 	return diffs
