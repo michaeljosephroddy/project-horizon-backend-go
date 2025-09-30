@@ -11,20 +11,20 @@ import (
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
-type JournalRepository struct {
+type MoodLogRepository struct {
 	db *sql.DB
 }
 
-func NewJournalRepository(dbConnection *sql.DB) *JournalRepository {
-	return &JournalRepository{
+func NewMoodLogRepository(dbConnection *sql.DB) *MoodLogRepository {
+	return &MoodLogRepository{
 		db: dbConnection,
 	}
 }
 
-func (jr *JournalRepository) Streaks(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Streak {
+func (mlr *MoodLogRepository) Streaks(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Streak {
 
 	query := fmt.Sprintf(streaksQuery, operator)
-	rows, queryErr := jr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
+	rows, queryErr := mlr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
 	if queryErr != nil {
 		panic(queryErr)
 	}
@@ -46,7 +46,7 @@ func (jr *JournalRepository) Streaks(userID string, startDate string, endDate st
 	}
 
 	for i := 0; i < len(streaks); i++ {
-		streakDays := jr.Days(userID, streaks[i].StartDate, streaks[i].EndDate, operator, moodRating, moodCategoryID, targetPercentage)
+		streakDays := mlr.Days(userID, streaks[i].StartDate, streaks[i].EndDate, operator, moodRating, moodCategoryID, targetPercentage)
 		streaks[i].Days = append(streaks[i].Days, streakDays...)
 	}
 
@@ -57,11 +57,11 @@ func (jr *JournalRepository) Streaks(userID string, startDate string, endDate st
 	return streaks
 }
 
-func (jr *JournalRepository) Days(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
+func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
 
 	query := fmt.Sprintf(daysQuery, operator)
 
-	rows, queryErr := jr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
+	rows, queryErr := mlr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
 	if queryErr != nil {
 		panic(queryErr)
 	}
@@ -72,7 +72,7 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 	for rows.Next() {
 		var dateStr string
 		var createdAt string
-		var journalEntryID int
+		var moodLogID int
 		var moodRating int
 		var note string
 		var moodTags string
@@ -85,7 +85,7 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 		scanErr := rows.Scan(
 			&dateStr,
 			&createdAt,
-			&journalEntryID,
+			&moodLogID,
 			&moodRating,
 			&note,
 			&moodTags,
@@ -104,7 +104,7 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 			resultsByDate[dateStr] = &models.Day{
 				Date:           dateStr,
 				DailyAvgRating: dailyAvgRating,
-				JournalEntries: []models.JournalEntry{},
+				MoodLogs:       []models.MoodLog{},
 			}
 		}
 
@@ -116,16 +116,16 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 		}
 
 		// Add journal entry to this day
-		entry := models.JournalEntry{
-			CreatedAt:      createdAt,
-			UserID:         userID,
-			JournalEntryID: journalEntryID,
-			MoodRating:     moodRating,
-			Note:           note,
-			MoodTags:       tags,
+		entry := models.MoodLog{
+			CreatedAt:  createdAt,
+			UserID:     userID,
+			MoodLogID:  moodLogID,
+			MoodRating: moodRating,
+			Note:       note,
+			MoodTags:   tags,
 		}
 
-		resultsByDate[dateStr].JournalEntries = append(resultsByDate[dateStr].JournalEntries, entry)
+		resultsByDate[dateStr].MoodLogs = append(resultsByDate[dateStr].MoodLogs, entry)
 	}
 
 	// Convert map to slice
@@ -141,7 +141,7 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 
 	// get daily mood tag frequencies
 	for i := 0; i < len(days); i++ {
-		dailyMoodTagFrequencies := jr.MoodTagFrequencies(userID, days[i].Date, days[i].Date)
+		dailyMoodTagFrequencies := mlr.MoodTagFrequencies(userID, days[i].Date, days[i].Date)
 		slices.SortFunc(dailyMoodTagFrequencies, func(a, b models.MoodTagFrequency) int {
 			if a.Percentage > b.Percentage {
 				return -1
@@ -162,9 +162,9 @@ func (jr *JournalRepository) Days(userID string, startDate string, endDate strin
 	return days
 }
 
-func (jr *JournalRepository) StandardDeviation(userID string, startDate string, endDate string) float64 {
+func (mlr *MoodLogRepository) StandardDeviation(userID string, startDate string, endDate string) float64 {
 
-	rows, queryErr := jr.db.Query(stdDevQuery, userID, startDate, endDate)
+	rows, queryErr := mlr.db.Query(stdDevQuery, userID, startDate, endDate)
 	if queryErr != nil {
 		panic(queryErr)
 	}
@@ -186,9 +186,9 @@ func (jr *JournalRepository) StandardDeviation(userID string, startDate string, 
 	return standardDeviation.Float64
 }
 
-func (jr *JournalRepository) MovingAverages(userID string, startDate string, endDate string) []models.MovingAverage {
+func (mlr *MoodLogRepository) MovingAverages(userID string, startDate string, endDate string) []models.MovingAverage {
 
-	rows, queryErr := jr.db.Query(movingAvgQuery, userID, startDate, endDate)
+	rows, queryErr := mlr.db.Query(movingAvgQuery, userID, startDate, endDate)
 	if queryErr != nil {
 		panic(queryErr)
 	}
@@ -216,42 +216,42 @@ func (jr *JournalRepository) MovingAverages(userID string, startDate string, end
 	return movingAverages
 }
 
-func (jr *JournalRepository) JournalEntries(userID string, startDate string, endDate string) []models.JournalEntry {
+func (mlr *MoodLogRepository) MoodLogs(userID string, startDate string, endDate string) []models.MoodLog {
 
-	rows, err := jr.db.Query(journalEntriesQuery, userID, startDate, endDate)
+	rows, err := mlr.db.Query(journalEntriesQuery, userID, startDate, endDate)
 	if err != nil {
 		panic(err)
 	}
 	defer rows.Close()
 
-	var journalEntries []models.JournalEntry
-	var journalEntry models.JournalEntry
+	var moodLogs []models.MoodLog
+	var moodLog models.MoodLog
 
 	for rows.Next() {
 		scanErr := rows.Scan(
-			&journalEntry.JournalEntryID,
-			&journalEntry.UserID,
-			&journalEntry.MoodRating,
-			&journalEntry.Note,
-			&journalEntry.CreatedAt,
+			&moodLog.MoodLogID,
+			&moodLog.UserID,
+			&moodLog.MoodRating,
+			&moodLog.Note,
+			&moodLog.CreatedAt,
 		)
 		if scanErr != nil {
 			panic(scanErr)
 		}
 
-		journalEntries = append(journalEntries, journalEntry)
+		moodLogs = append(moodLogs, moodLog)
 	}
 
-	if journalEntries == nil {
-		return make([]models.JournalEntry, 0)
+	if moodLogs == nil {
+		return make([]models.MoodLog, 0)
 	}
 
-	return journalEntries
+	return moodLogs
 }
 
-func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.MoodTagFrequency {
+func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.MoodTagFrequency {
 
-	rows, queryErr := jr.db.Query(moodTagFrequenciesQuery, userID, startDate, endDate)
+	rows, queryErr := mlr.db.Query(moodTagFrequenciesQuery, userID, startDate, endDate)
 	if queryErr != nil {
 		panic(queryErr)
 	}
@@ -280,9 +280,9 @@ func (jr *JournalRepository) MoodTagFrequencies(userID string, startDate string,
 	return moodTagFrequencies
 }
 
-func (jr *JournalRepository) AvgMoodRating(userID string, startDate string, endDate string) float64 {
+func (mlr *MoodLogRepository) AvgMoodRating(userID string, startDate string, endDate string) float64 {
 
-	rows, queryErr := jr.db.Query(AvgMoodRatingQuery, userID, startDate, endDate)
+	rows, queryErr := mlr.db.Query(AvgMoodRatingQuery, userID, startDate, endDate)
 	if queryErr != nil {
 		panic(queryErr)
 	}

@@ -2,12 +2,15 @@ CREATE DATABASE IF NOT EXISTS project_horizon;
 USE project_horizon;
 
 -- Optional: Clean slate (use only in dev) - drop children first, then parents
-DROP TABLE IF EXISTS journal_entry_mood_tag;
+DROP TABLE IF EXISTS mood_log_mood_tag;
 DROP TABLE IF EXISTS user_medication;
-DROP TABLE IF EXISTS journal_entry;
+DROP TABLE IF EXISTS medication_log;
+DROP TABLE IF EXISTS mood_log;
+DROP TABLE IF EXISTS sleep_log;
 DROP TABLE IF EXISTS mood_tag;
 DROP TABLE IF EXISTS mood_category;
 DROP TABLE IF EXISTS medication;
+DROP TABLE IF EXISTS sleep_quality_tag;
 DROP TABLE IF EXISTS user;
 
 -- User table
@@ -15,13 +18,17 @@ CREATE TABLE IF NOT EXISTS user (
     user_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email)
 );
 
 -- Medications
 CREATE TABLE IF NOT EXISTS medication (
     medication_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Mood categories
@@ -36,52 +43,111 @@ CREATE TABLE IF NOT EXISTS mood_tag (
     mood_tag_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
     mood_category_id BIGINT UNSIGNED NOT NULL,
-    CONSTRAINT fk_mood_tag_category FOREIGN KEY (mood_category_id) REFERENCES mood_category(mood_category_id)
+    CONSTRAINT fk_mood_tag_category FOREIGN KEY (mood_category_id) REFERENCES mood_category(mood_category_id),
+    INDEX idx_category (mood_category_id)
 );
 
--- User medications
+-- User medications for med history
 CREATE TABLE IF NOT EXISTS user_medication (
     user_medication_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
     medication_id BIGINT UNSIGNED NOT NULL,
-    CONSTRAINT fk_um_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
-    CONSTRAINT fk_um_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE
+    dosage VARCHAR(50),
+    start_date DATE NOT NULL,
+    end_date DATE,
+    stopped TINYINT(1) NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_medication_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_medication_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE,
+    INDEX idx_user_med (user_id, medication_id),
+    INDEX idx_start_date (start_date)
 );
 
--- Journal entries
-CREATE TABLE IF NOT EXISTS journal_entry (
-    journal_entry_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+-- Daily adherence (what was actually taken)
+CREATE TABLE IF NOT EXISTS medication_log (
+    medication_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    medication_id BIGINT UNSIGNED NOT NULL,
+    taken_at TIMESTAMP NOT NULL,
+    taken TINYINT(1) NOT NULL DEFAULT 1,
+    dosage VARCHAR(50) NOT NULL,
+    notes TEXT,
+    CONSTRAINT fk_medication_log_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_medication_log_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE,
+    INDEX idx_taken_at (taken_at),
+    INDEX idx_user_taken (user_id, taken_at)
+);
+
+-- Mood log entries
+CREATE TABLE IF NOT EXISTS mood_log (
+    mood_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
     mood_rating INT NOT NULL CHECK (mood_rating BETWEEN 1 AND 10),
-    note TEXT NOT NULL,
-    created_at DATETIME NOT NULL,
-    CONSTRAINT fk_journal_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_mood_log_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    INDEX idx_user_created (user_id, created_at),
     INDEX idx_created_at (created_at)
 );
 
--- Journal entry mood tags
-CREATE TABLE IF NOT EXISTS journal_entry_mood_tag (
-    journal_entry_mood_tag_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    journal_entry_id BIGINT UNSIGNED NOT NULL,
+-- Mood log mood tags join table
+CREATE TABLE IF NOT EXISTS mood_log_mood_tag (
+    mood_log_mood_tag_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    mood_log_id BIGINT UNSIGNED NOT NULL,
     mood_tag_id BIGINT UNSIGNED NOT NULL,
-    CONSTRAINT fk_jem_journal FOREIGN KEY (journal_entry_id) REFERENCES journal_entry(journal_entry_id) ON DELETE CASCADE,
-    CONSTRAINT fk_jem_tag FOREIGN KEY (mood_tag_id) REFERENCES mood_tag(mood_tag_id) ON DELETE CASCADE,
-    INDEX idx_mood_tag (mood_tag_id)
+    CONSTRAINT fk_mlmt_log FOREIGN KEY (mood_log_id) REFERENCES mood_log(mood_log_id) ON DELETE CASCADE,
+    CONSTRAINT fk_mlmt_tag FOREIGN KEY (mood_tag_id) REFERENCES mood_tag(mood_tag_id) ON DELETE CASCADE,
+    INDEX idx_mood_log (mood_log_id),
+    INDEX idx_mood_tag (mood_tag_id),
+    UNIQUE KEY unique_log_tag (mood_log_id, mood_tag_id)
+);
+
+-- The different sleep quality tags
+CREATE TABLE IF NOT EXISTS sleep_quality_tag (
+    sleep_quality_tag_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- Track Sleep Entries
+CREATE TABLE IF NOT EXISTS sleep_log (
+    sleep_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    hours_slept DECIMAL(4,2) NOT NULL CHECK (hours_slept >= 0 AND hours_slept <= 24),
+    sleep_quality_tag_id BIGINT UNSIGNED NOT NULL,
+    notes TEXT,
+    sleep_date DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_sleep_log_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_sleep_log_quality FOREIGN KEY (sleep_quality_tag_id) REFERENCES sleep_quality_tag(sleep_quality_tag_id) ON DELETE CASCADE,
+    INDEX idx_user_date (user_id, sleep_date),
+    INDEX idx_sleep_date (sleep_date)
 );
 
 -- Reset auto-increments
 ALTER TABLE user AUTO_INCREMENT = 1;
 ALTER TABLE mood_category AUTO_INCREMENT = 1;
 ALTER TABLE mood_tag AUTO_INCREMENT = 1;
-ALTER TABLE journal_entry AUTO_INCREMENT = 1;
+ALTER TABLE mood_log AUTO_INCREMENT = 1;
 ALTER TABLE medication AUTO_INCREMENT = 1;
 ALTER TABLE user_medication AUTO_INCREMENT = 1;
-ALTER TABLE journal_entry_mood_tag AUTO_INCREMENT = 1;
+ALTER TABLE medication_log AUTO_INCREMENT = 1;
+ALTER TABLE mood_log_mood_tag AUTO_INCREMENT = 1;
+ALTER TABLE sleep_log AUTO_INCREMENT = 1;
+ALTER TABLE sleep_quality_tag AUTO_INCREMENT = 1;
 
 -- DB user
 CREATE USER IF NOT EXISTS 'demouser'@'localhost' IDENTIFIED BY 'demopassword';
 GRANT ALL PRIVILEGES ON project_horizon.* TO 'demouser'@'localhost';
 FLUSH PRIVILEGES;
+
+-- ========================================
+-- SEED DATA
+-- ========================================
 
 -- Mood categories
 INSERT INTO mood_category (name, description) VALUES
@@ -111,16 +177,78 @@ INSERT INTO user (email, password_hash, created_at) VALUES
 ('carol@example.com', '$2y$10$example.hash.3', '2025-07-25 09:15:00');
 
 -- Medications
-INSERT INTO medication (name) VALUES
-('Sertraline'), ('Fluoxetine'), ('Escitalopram'), ('Bupropion'), ('Venlafaxine'),
-('Lithium'), ('Lamotrigine'), ('Quetiapine'), ('Aripiprazole'), ('Valproate');
+INSERT INTO medication (name, description) VALUES
+('Sertraline', 'SSRI antidepressant used to treat depression, anxiety, OCD, and PTSD'),
+('Fluoxetine', 'SSRI antidepressant commonly known as Prozac'),
+('Escitalopram', 'SSRI antidepressant used for depression and generalized anxiety disorder'),
+('Bupropion', 'Atypical antidepressant that can help with depression and smoking cessation'),
+('Venlafaxine', 'SNRI antidepressant for depression and anxiety disorders'),
+('Lithium', 'Mood stabilizer primarily used to treat bipolar disorder'),
+('Lamotrigine', 'Mood stabilizer used for bipolar disorder and seizure prevention'),
+('Quetiapine', 'Atypical antipsychotic used for bipolar disorder, schizophrenia, and depression'),
+('Aripiprazole', 'Atypical antipsychotic for schizophrenia, bipolar disorder, and depression'),
+('Valproate', 'Mood stabilizer used for bipolar disorder, seizures, and migraine prevention');
 
 -- Link users/medications
-INSERT INTO user_medication (user_id, medication_id) VALUES
-(1, 1), (1, 6), (2, 2), (2, 7), (3, 3), (3, 8);
+INSERT INTO user_medication (user_id, medication_id, dosage, start_date, stopped) VALUES
+(1, 1, '50mg', '2025-01-15', 0),
+(1, 6, '300mg', '2025-02-01', 0),
+(2, 2, '20mg', '2025-03-10', 0),
+(2, 7, '100mg', '2025-03-15', 0),
+(3, 3, '10mg', '2025-04-01', 0),
+(3, 8, '200mg', '2025-04-10', 0);
+
+-- Sleep quality tags
+INSERT INTO sleep_quality_tag (name, description) VALUES
+('Excellent', 'Slept deeply, woke up refreshed and energized'),
+('Good', 'Slept well with minimal disruptions'),
+('Fair', 'Adequate sleep but not fully restorative'),
+('Poor', 'Restless sleep with frequent waking'),
+('Very Poor', 'Minimal sleep, exhausted upon waking');
+
+-- Sample sleep logs for August 2025
+INSERT INTO sleep_log (user_id, hours_slept, sleep_quality_tag_id, sleep_date, notes) VALUES
+-- Alice's sleep logs
+(1, 7.5, 2, '2025-08-01', 'Slept well, ready for the day'),
+(1, 8.0, 1, '2025-08-02', 'Amazing sleep after great day'),
+(1, 7.0, 2, '2025-08-03', 'Good rest'),
+(1, 8.5, 1, '2025-08-04', 'Perfect sleep after hiking'),
+(1, 6.5, 3, '2025-08-05', 'Monday anxiety affected sleep'),
+-- Bob's sleep logs
+(2, 6.0, 3, '2025-08-01', 'Decent sleep'),
+(2, 5.5, 4, '2025-08-02', 'Restless night'),
+(2, 7.0, 2, '2025-08-03', 'Better sleep after park walk'),
+(2, 7.5, 2, '2025-08-04', 'Good rest'),
+(2, 7.0, 2, '2025-08-05', 'Solid sleep'),
+-- Carol's sleep logs
+(3, 6.5, 3, '2025-08-01', 'Okay sleep, some anxiety'),
+(3, 7.0, 2, '2025-08-02', 'Better sleep after good conversation'),
+(3, 6.0, 3, '2025-08-03', 'Average sleep'),
+(3, 8.0, 1, '2025-08-04', 'Excellent sleep after family day'),
+(3, 5.5, 4, '2025-08-05', 'Stressed about deadlines');
+
+-- Sample medication logs
+INSERT INTO medication_log (user_id, medication_id, taken_at, taken, dosage, notes) VALUES
+-- Alice taking medications in August
+(1, 1, '2025-08-01 08:00:00', 1, '50mg', 'Morning dose with breakfast'),
+(1, 6, '2025-08-01 20:00:00', 1, '300mg', 'Evening dose'),
+(1, 1, '2025-08-02 08:15:00', 1, '50mg', 'Morning dose'),
+(1, 6, '2025-08-02 20:30:00', 1, '300mg', 'Evening dose'),
+(1, 1, '2025-08-03 09:00:00', 1, '50mg', 'Morning dose'),
+-- Bob taking medications
+(2, 2, '2025-08-01 07:30:00', 1, '20mg', 'Morning dose'),
+(2, 7, '2025-08-01 21:00:00', 1, '100mg', 'Evening dose'),
+(2, 2, '2025-08-02 07:45:00', 1, '20mg', 'Morning dose'),
+(2, 7, '2025-08-02 21:15:00', 0, '100mg', 'Forgot evening dose'),
+-- Carol taking medications
+(3, 3, '2025-08-01 08:00:00', 1, '10mg', 'Morning dose'),
+(3, 8, '2025-08-01 22:00:00', 1, '200mg', 'Bedtime dose'),
+(3, 3, '2025-08-02 08:00:00', 1, '10mg', 'Morning dose'),
+(3, 8, '2025-08-02 22:00:00', 1, '200mg', 'Bedtime dose');
 
 -- Journal entries for August 2025 (31 days)
-INSERT INTO journal_entry (user_id, mood_rating, note, created_at) VALUES
+-- Cycling through user_id 1, 2, and 3
+INSERT INTO mood_log (user_id, mood_rating, note, created_at) VALUES
 -- August 1, 2025
 (1, 7, 'Started the month feeling optimistic. Work project is going well and I had a great workout this morning.', '2025-08-01 08:30:00'),
 (2, 5, 'Feeling neutral today. Nothing particularly good or bad happened. Just a regular Thursday.', '2025-08-01 19:45:00'),
@@ -276,8 +404,8 @@ INSERT INTO journal_entry (user_id, mood_rating, note, created_at) VALUES
 (2, 7, 'August conclusion satisfaction. Good month overall with growth, challenges overcome, and joy found.', '2025-08-31 21:00:00'),
 (3, 7, 'Perfect August ending! Grateful for the experiences and ready for new adventures in September.', '2025-08-31 20:45:00');
 
--- Updated mood tag associations for journal entries with new mood IDs
-INSERT INTO journal_entry_mood_tag (journal_entry_id, mood_tag_id) VALUES
+-- Mood tag associations for journal entries
+INSERT INTO mood_log_mood_tag (mood_log_id, mood_tag_id) VALUES
 -- August 1, 2025
 (1, 1), (1, 15), -- Alice: Happy, Energetic (optimistic, great workout)
 (2, 11), (2, 14), -- Bob: Content, Bored (neutral, regular day)
@@ -433,7 +561,10 @@ INSERT INTO journal_entry_mood_tag (journal_entry_id, mood_tag_id) VALUES
 (92, 11), (92, 4), -- Bob: Content, Grateful (good month overall)
 (93, 1), (93, 4); -- Carol: Happy, Grateful (perfect ending)
 
--- Useful queries for mood tracking with categories
+-- ========================================
+-- USEFUL QUERIES
+-- ========================================
+
 -- View all mood tags with their categories:
 -- SELECT mt.name as mood, mc.name as category 
 -- FROM mood_tag mt 
@@ -441,9 +572,76 @@ INSERT INTO journal_entry_mood_tag (journal_entry_id, mood_tag_id) VALUES
 -- ORDER BY mc.name, mt.name;
 
 -- Get mood distribution by category:
--- SELECT mc.name as category, COUNT(jemt.mood_tag_id) as usage_count
+-- SELECT mc.name as category, COUNT(mlmt.mood_tag_id) as usage_count
 -- FROM mood_category mc
 -- LEFT JOIN mood_tag mt ON mc.mood_category_id = mt.mood_category_id
--- LEFT JOIN journal_entry_mood_tag jemt ON mt.mood_tag_id = jemt.mood_tag_id
+-- LEFT JOIN mood_log_mood_tag mlmt ON mt.mood_tag_id = mlmt.mood_tag_id
 -- GROUP BY mc.mood_category_id, mc.name
 -- ORDER BY usage_count DESC;
+
+-- View user's mood log with tags:
+-- SELECT 
+--     ml.mood_log_id,
+--     u.email,
+--     ml.mood_rating,
+--     ml.note,
+--     GROUP_CONCAT(mt.name SEPARATOR ', ') as mood_tags,
+--     ml.created_at
+-- FROM mood_log ml
+-- JOIN user u ON ml.user_id = u.user_id
+-- LEFT JOIN mood_log_mood_tag mlmt ON ml.mood_log_id = mlmt.mood_log_id
+-- LEFT JOIN mood_tag mt ON mlmt.mood_tag_id = mt.mood_tag_id
+-- WHERE u.user_id = 1
+-- GROUP BY ml.mood_log_id
+-- ORDER BY ml.created_at DESC;
+
+-- Medication adherence report:
+-- SELECT 
+--     u.email,
+--     m.name as medication,
+--     DATE(ml.taken_at) as date,
+--     SUM(CASE WHEN ml.taken = 1 THEN 1 ELSE 0 END) as doses_taken,
+--     COUNT(*) as total_doses,
+--     ROUND(SUM(CASE WHEN ml.taken = 1 THEN 1 ELSE 0 END) / COUNT(*) * 100, 2) as adherence_rate
+-- FROM medication_log ml
+-- JOIN user u ON ml.user_id = u.user_id
+-- JOIN medication m ON ml.medication_id = m.medication_id
+-- GROUP BY u.user_id, m.medication_id, DATE(ml.taken_at)
+-- ORDER BY date DESC;
+
+-- Sleep quality summary:
+-- SELECT 
+--     u.email,
+--     AVG(sl.hours_slept) as avg_hours,
+--     sqt.name as sleep_quality,
+--     COUNT(*) as nights
+-- FROM sleep_log sl
+-- JOIN user u ON sl.user_id = u.user_id
+-- JOIN sleep_quality_tag sqt ON sl.sleep_quality_tag_id = sqt.sleep_quality_tag_id
+-- GROUP BY u.user_id, sqt.sleep_quality_tag_id
+-- ORDER BY u.email, nights DESC;
+
+-- Mood trends over time:
+-- SELECT 
+--     DATE(ml.created_at) as date,
+--     AVG(ml.mood_rating) as avg_mood,
+--     COUNT(*) as entries
+-- FROM mood_log ml
+-- WHERE ml.user_id = 1
+-- GROUP BY DATE(ml.created_at)
+-- ORDER BY date;
+
+-- Correlation between sleep and mood:
+-- SELECT 
+--     DATE(sl.sleep_date) as date,
+--     sl.hours_slept,
+--     sqt.name as sleep_quality,
+--     ml.mood_rating,
+--     ml.note
+-- FROM sleep_log sl
+-- JOIN user u ON sl.user_id = u.user_id
+-- LEFT JOIN mood_log ml ON u.user_id = ml.user_id 
+--     AND DATE(sl.sleep_date) = DATE(ml.created_at)
+-- JOIN sleep_quality_tag sqt ON sl.sleep_quality_tag_id = sqt.sleep_quality_tag_id
+-- WHERE u.user_id = 1
+-- ORDER BY date DESC;

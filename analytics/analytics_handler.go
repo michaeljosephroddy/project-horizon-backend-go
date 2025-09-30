@@ -29,10 +29,8 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 		endDate := request.URL.Query().Get("endDate")
 
 		result := handler.analyticsService.metrics(userID, startDate, endDate)
-		fmt.Printf("DEBUG struct: %+v\n", result)
 		body, _ := json.Marshal(result)
-
-		fmt.Println("DEBUG json:", string(body))
+		fmt.Println("DEBUG ", string(body))
 
 		writer.Header().Set("Content-Type", "application/json")
 		writer.Write(body)

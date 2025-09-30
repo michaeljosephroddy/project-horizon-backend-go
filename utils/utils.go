@@ -63,10 +63,10 @@ func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
 	return moodTagFrequencies
 }
 
-func FindMood(a, b models.Metrics) models.MoodTagFrequency {
+func FindMood(currentMoods, previousMoods []models.MoodTagFrequency) models.MoodTagFrequency {
 	var previousMood models.MoodTagFrequency
-	for _, mood := range b.TopMoodsPositiveDays {
-		if strings.EqualFold(mood.MoodTag, a.TopMoodsPositiveDays[0].MoodTag) {
+	for _, mood := range previousMoods {
+		if strings.EqualFold(mood.MoodTag, currentMoods[0].MoodTag) {
 			previousMood = mood
 			break
 		}

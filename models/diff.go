@@ -3,7 +3,8 @@ package models
 type Diff struct {
 	AvgMoodPercentChange             float64 `json:"avgMoodPercentChange"` // +0.8
 	TrendShift                       string  `json:"trendShift"`           // "increasing → stable"
-	StabilityShift                   string  `json:"stabilityShift"`       // "moderate → stable"
+	MovingAvgPercentChange           float64 `json:"movingAvgPercentChange"`
+	StabilityShift                   string  `json:"stabilityShift"` // "moderate → stable"
 	StabilityPercentChange           float64 `json:"stabilityPercentChange"`
 	TopMoodShift                     string  `json:"topMoodShift"`                     // "HAPPY → SAD"
 	TopMoodPercentChange             string  `json:"topMoodPercentChange"`             // -12.0 (percentage points)

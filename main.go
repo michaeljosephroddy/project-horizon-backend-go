@@ -13,8 +13,8 @@ func main() {
 	dbConnection := database.NewDatabaseConnection()
 	defer dbConnection.Close()
 
-	journalRepository := database.NewJournalRepository(dbConnection)
-	analyticsService := analytics.NewAnalyticsService(journalRepository)
+	moodLogRepository := database.NewMoodLogRepository(dbConnection)
+	analyticsService := analytics.NewAnalyticsService(moodLogRepository)
 	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
 	r := router.NewRouter(analyticsHandler)
 
