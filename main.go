@@ -14,7 +14,8 @@ func main() {
 	defer dbConnection.Close()
 
 	moodLogRepository := database.NewMoodLogRepository(dbConnection)
-	analyticsService := analytics.NewAnalyticsService(moodLogRepository)
+	sleepLogRepository := database.NewSleepLogRepository(dbConnection)
+	analyticsService := analytics.NewAnalyticsService(moodLogRepository, sleepLogRepository)
 	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
 	r := router.NewRouter(analyticsHandler)
 

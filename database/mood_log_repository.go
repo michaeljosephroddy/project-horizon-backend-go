@@ -142,7 +142,7 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 	// get daily mood tag frequencies
 	for i := 0; i < len(days); i++ {
 		dailyMoodTagFrequencies := mlr.MoodTagFrequencies(userID, days[i].Date, days[i].Date)
-		slices.SortFunc(dailyMoodTagFrequencies, func(a, b models.MoodTagFrequency) int {
+		slices.SortFunc(dailyMoodTagFrequencies, func(a, b models.TagFrequency) int {
 			if a.Percentage > b.Percentage {
 				return -1
 			} else if a.Percentage < b.Percentage {
@@ -186,9 +186,10 @@ func (mlr *MoodLogRepository) StandardDeviation(userID string, startDate string,
 	return standardDeviation.Float64
 }
 
-func (mlr *MoodLogRepository) MovingAverages(userID string, startDate string, endDate string) []models.MovingAverage {
+func (mlr *MoodLogRepository) MovingAverages(userID string, startDate string, endDate string, numDaysPreceding string) []models.MovingAverage {
 
-	rows, queryErr := mlr.db.Query(movingAvgQuery, userID, startDate, endDate)
+	query := fmt.Sprintf(moodMovingAvgQuery, numDaysPreceding)
+	rows, queryErr := mlr.db.Query(query, userID, startDate, endDate)
 	if queryErr != nil {
 		panic(queryErr)
 	}
@@ -249,7 +250,7 @@ func (mlr *MoodLogRepository) MoodLogs(userID string, startDate string, endDate 
 	return moodLogs
 }
 
-func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.MoodTagFrequency {
+func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.TagFrequency {
 
 	rows, queryErr := mlr.db.Query(moodTagFrequenciesQuery, userID, startDate, endDate)
 	if queryErr != nil {
@@ -257,12 +258,12 @@ func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string
 	}
 	defer rows.Close()
 
-	var moodTagFrequency models.MoodTagFrequency
-	var moodTagFrequencies []models.MoodTagFrequency
+	var moodTagFrequency models.TagFrequency
+	var moodTagFrequencies []models.TagFrequency
 
 	for rows.Next() {
 		scanErr := rows.Scan(
-			&moodTagFrequency.MoodTag,
+			&moodTagFrequency.TagName,
 			&moodTagFrequency.Count,
 			&moodTagFrequency.Percentage,
 		)
@@ -274,7 +275,7 @@ func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string
 	}
 
 	if moodTagFrequencies == nil {
-		return make([]models.MoodTagFrequency, 0)
+		return make([]models.TagFrequency, 0)
 	}
 
 	return moodTagFrequencies

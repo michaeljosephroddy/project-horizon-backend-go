@@ -20,11 +20,11 @@ func GetUserIDFromPath(path string) string {
 	return splitPath[userIDIndex]
 }
 
-func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
+func MoodTagFrequencies(data []models.Day) []models.TagFrequency {
 	var tags []string
 	for i := 0; i < len(data); i++ {
 		for _, val := range data[i].MoodTagFrequencies {
-			tags = append(tags, val.MoodTag)
+			tags = append(tags, val.TagName)
 		}
 	}
 
@@ -36,17 +36,17 @@ func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
 		freq[tag] = freq[tag] + 1.0
 	}
 
-	var moodTagFrequencies []models.MoodTagFrequency
+	var moodTagFrequencies []models.TagFrequency
 	for key, val := range freq {
-		mtf := models.MoodTagFrequency{
+		mtf := models.TagFrequency{
 			Count:      int(val),
-			MoodTag:    key,
+			TagName:    key,
 			Percentage: (val / float64(len(tags))) * 100.0,
 		}
 		moodTagFrequencies = append(moodTagFrequencies, mtf)
 	}
 
-	slices.SortFunc(moodTagFrequencies, func(a, b models.MoodTagFrequency) int {
+	slices.SortFunc(moodTagFrequencies, func(a, b models.TagFrequency) int {
 		if a.Percentage > b.Percentage {
 			return -1
 		} else if a.Percentage < b.Percentage {
@@ -57,16 +57,16 @@ func MoodTagFrequencies(data []models.Day) []models.MoodTagFrequency {
 	})
 
 	if moodTagFrequencies == nil {
-		return make([]models.MoodTagFrequency, 0)
+		return make([]models.TagFrequency, 0)
 	}
 
 	return moodTagFrequencies
 }
 
-func FindMood(currentMoods, previousMoods []models.MoodTagFrequency) models.MoodTagFrequency {
-	var previousMood models.MoodTagFrequency
+func FindMood(currentMoods, previousMoods []models.TagFrequency) models.TagFrequency {
+	var previousMood models.TagFrequency
 	for _, mood := range previousMoods {
-		if strings.EqualFold(mood.MoodTag, currentMoods[0].MoodTag) {
+		if strings.EqualFold(mood.TagName, currentMoods[0].TagName) {
 			previousMood = mood
 			break
 		}
@@ -85,4 +85,26 @@ func CalculatePreviousDates(startDate string, endDate string) (string, string) {
 	previousEnd := startDateParsed.AddDate(0, 0, -1).Format(layout)
 
 	return previousStart, previousEnd
+}
+
+func DetermineTrend(data []models.MovingAverage) string {
+
+	var trend string
+	if len(data) >= 2 {
+		last := data[len(data)-1]
+		prev := data[len(data)-2]
+
+		switch {
+		case last.MovingAvg > prev.MovingAvg:
+			trend = "increasing"
+		case last.MovingAvg < prev.MovingAvg:
+			trend = "decreasing"
+		default:
+			trend = "flat"
+		}
+	} else {
+		trend = "not enough data"
+	}
+
+	return trend
 }

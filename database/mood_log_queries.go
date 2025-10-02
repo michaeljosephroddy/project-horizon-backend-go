@@ -125,7 +125,7 @@ FROM   mood_log
 WHERE  user_id = ?
        AND Date(created_at) BETWEEN ? AND ?;`
 
-var movingAvgQuery = `WITH first_query
+var moodMovingAvgQuery = `WITH first_query
      AS (SELECT DATE(created_at) AS DATE,
                 Avg(mood_rating) AS daily_avg
          FROM   mood_log
@@ -136,8 +136,8 @@ var movingAvgQuery = `WITH first_query
      AS (SELECT DATE,
                 Avg(daily_avg)
                   OVER(
-                    ORDER BY DATE ROWS BETWEEN 2 preceding AND CURRENT ROW) AS
-                   moving_avg_3day
+                    ORDER BY DATE ROWS BETWEEN %s preceding AND CURRENT ROW) AS
+                   moving_avg
          FROM   first_query)
 SELECT *
 FROM   second_query

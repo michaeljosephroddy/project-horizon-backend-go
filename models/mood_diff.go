@@ -1,6 +1,6 @@
 package models
 
-type Diff struct {
+type MoodDiff struct {
 	AvgMoodPercentChange             float64 `json:"avgMoodPercentChange"` // +0.8
 	TrendShift                       string  `json:"trendShift"`           // "increasing → stable"
 	MovingAvgPercentChange           float64 `json:"movingAvgPercentChange"`
