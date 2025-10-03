@@ -71,11 +71,10 @@ func FindMood(currentMoods, previousMoods []models.TagFrequency) models.TagFrequ
 			break
 		}
 	}
-
 	return previousMood
 }
 
-func CalculatePreviousDates(startDate string, endDate string) (string, string) {
+func PreviousDates(startDate string, endDate string) (string, string) {
 	layout := "2006-01-02"
 	startDateParsed, _ := time.Parse(layout, startDate)
 	endDateParsed, _ := time.Parse(layout, endDate)
@@ -83,17 +82,14 @@ func CalculatePreviousDates(startDate string, endDate string) (string, string) {
 	numDays := int(diff.Hours() / 24)
 	previousStart := startDateParsed.AddDate(0, 0, -numDays).Format(layout)
 	previousEnd := startDateParsed.AddDate(0, 0, -1).Format(layout)
-
 	return previousStart, previousEnd
 }
 
 func DetermineTrend(data []models.MovingAverage) string {
-
 	var trend string
 	if len(data) >= 2 {
 		last := data[len(data)-1]
 		prev := data[len(data)-2]
-
 		switch {
 		case last.MovingAvg > prev.MovingAvg:
 			trend = "increasing"
@@ -105,6 +101,28 @@ func DetermineTrend(data []models.MovingAverage) string {
 	} else {
 		trend = "not enough data"
 	}
-
 	return trend
+}
+
+func Granularity(numDays int) string {
+	var granularity string
+	switch {
+	case numDays <= 7:
+		granularity = "weekly"
+	case numDays <= 28:
+		granularity = "monthly"
+	case numDays <= 84:
+		granularity = "3-months"
+	default:
+		granularity = "custom"
+	}
+	return granularity
+}
+
+func NumDaysBetween(startDate string, endDate string) int {
+	layout := "2006-01-02" // Correct Go layout
+	startDateParsed, _ := time.Parse(layout, startDate)
+	endDateParsed, _ := time.Parse(layout, endDate)
+	diff := endDateParsed.Sub(startDateParsed)
+	return int(diff.Hours() / 24)
 }

@@ -16,6 +16,7 @@ type AnalyticsHandler struct {
 // TODO need to come up with a better regexp
 var analyticsUsersMood string = `^/analytics/users/([0-9]+)/mood$`
 var analyticsUsersSleep string = `^/analytics/users/([0-9]+)/sleep$`
+
 // var analyticsUsersMedication string = `^/analytics/users/([0-9]+)/medication$`
 
 func NewAnalyticsHandler(analyticsService *analyticsService) *AnalyticsHandler {
@@ -75,7 +76,7 @@ func (handler *AnalyticsHandler) moodMetrics(userID string, startDate string, en
 	current := handler.analyticsService.analyzeMood(userID, startDate, endDate)
 	fmt.Println(startDate, " ", endDate, current.MovingAvg)
 
-	previousStart, previousEnd := utils.CalculatePreviousDates(startDate, endDate)
+	previousStart, previousEnd := utils.PreviousDates(startDate, endDate)
 
 	previous := handler.analyticsService.analyzeMood(userID, previousStart, previousEnd)
 	fmt.Println(previousStart, " ", previousEnd, previous.MovingAvg)
@@ -91,5 +92,5 @@ func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate string, e
 
 	current := handler.analyticsService.analyzeSleep(userID, startDate, endDate)
 
-	return current 
+	return current
 }

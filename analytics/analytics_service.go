@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"time"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 
@@ -26,12 +25,7 @@ func NewAnalyticsService(moodLogRepository *database.MoodLogRepository, sleepLog
 
 func (service *analyticsService) analyzeMood(userID string, startDate string, endDate string) *models.MoodMetric {
 
-	layout := "2006-01-02" // Correct Go layout
-	startDateParsed, _ := time.Parse(layout, startDate)
-	endDateParsed, _ := time.Parse(layout, endDate)
-
-	diff := endDateParsed.Sub(startDateParsed)
-	numDays := int(diff.Hours() / 24)
+	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
 
 	movingAverages := service.moodLogRepository.MovingAverages(userID, startDate, endDate, numDaysPreceding)
@@ -72,9 +66,11 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 		}
 	})
 
+	// TODO fix magic strings
 	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, ">=", "6", "1", "50")
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
+	// TODO fix magic strings
 	neutralDays := service.moodLogRepository.Days(userID, startDate, endDate, "=", "5", "3", "50")
 	mtfNeutralDays := utils.MoodTagFrequencies(neutralDays)
 
@@ -92,17 +88,7 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 
 	clinicalStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, ">=", "1", "5", "50")
 
-	var granularity string
-	switch {
-	case numDays <= 7:
-		granularity = "weekly"
-	case numDays <= 28:
-		granularity = "monthly"
-	case numDays <= 84:
-		granularity = "3-months"
-	default:
-		granularity = "custom"
-	}
+	granularity := utils.Granularity(numDays)
 
 	moodMetrics := &models.MoodMetric{
 		UserID:               userID,
@@ -176,6 +162,7 @@ func (service *analyticsService) moodDiffs(current, previous *models.MoodMetric)
 	var topMoodPositiveDaysPercentChange string
 	if len(previous.TopMoodsPositiveDays) != 0 && len(current.TopMoodsPositiveDays) != 0 {
 		previousMood := utils.FindMood(current.TopMoodsPositiveDays, previous.TopMoodsPositiveDays)
+		// TODO maybe break this out into a utility function
 		percentChange := ((current.TopMoodsPositiveDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
 		topMoodPositiveDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsPositiveDays[0].TagName, percentChange)
 	}
@@ -183,6 +170,7 @@ func (service *analyticsService) moodDiffs(current, previous *models.MoodMetric)
 	var topMoodNeutralDaysPercentChange string
 	if len(previous.TopMoodsNeutralDays) != 0 && len(current.TopMoodsNeutralDays) != 0 {
 		previousMood := utils.FindMood(current.TopMoodsNeutralDays, previous.TopMoodsNeutralDays)
+		// TODO maybe break this out into a utility function
 		percentChange := ((current.TopMoodsNeutralDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
 		topMoodNeutralDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsNeutralDays[0].TagName, percentChange)
 	}
@@ -190,6 +178,7 @@ func (service *analyticsService) moodDiffs(current, previous *models.MoodMetric)
 	var topMoodNegativeDaysPercentChange string
 	if len(previous.TopMoodsNegativeDays) != 0 && len(current.TopMoodsNegativeDays) != 0 {
 		previousMood := utils.FindMood(current.TopMoodsNegativeDays, previous.TopMoodsNegativeDays)
+		// TODO maybe break this out into a utility function
 		percentChange := ((current.TopMoodsNegativeDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
 		topMoodNegativeDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsNegativeDays[0].TagName, percentChange)
 	}
@@ -197,15 +186,18 @@ func (service *analyticsService) moodDiffs(current, previous *models.MoodMetric)
 	var topMoodClinicalDaysPercentChange string
 	if len(previous.TopMoodsClinicalDays) != 0 && len(current.TopMoodsClinicalDays) != 0 {
 		previousMood := utils.FindMood(current.TopMoodsClinicalDays, previous.TopMoodsClinicalDays)
+		// TODO maybe break this out into a utility function
 		percentChange := ((current.TopMoodsClinicalDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
 		topMoodClinicalDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsClinicalDays[0].TagName, percentChange)
 	}
 
+	// TODO same here could break out repetetive len() - len()
 	positiveDaysChange := len(current.PositiveDays) - len(previous.PositiveDays)
 	neutralDaysChange := len(current.NeutralDays) - len(previous.NeutralDays)
 	negativeDaysChange := len(current.NegativeDays) - len(previous.NegativeDays)
 	clinicalDaysChange := len(current.ClinicalDays) - len(previous.ClinicalDays)
 
+	// TODO same here could break out repetetive len() - len()
 	longestPositiveStreakChange := len(current.PositiveStreaks) - len(previous.PositiveStreaks)
 	longestNeutralStreakChange := len(current.NeutralStreaks) - len(previous.NeutralStreaks)
 	longestNegativeStreakChange := len(current.NegativeStreaks) - len(previous.NegativeStreaks)
@@ -240,11 +232,8 @@ func (service *analyticsService) analyzeSleep(userID string, startDate string, e
 
 	avgSleepHours := service.sleepLogRepository.AvgSleepHours(userID, startDate, endDate)
 
-	layout := "2006-01-02"
-	startParsed, _ := time.Parse(layout, startDate)
-	endParsed, _ := time.Parse(layout, endDate)
-	duration := endParsed.Sub(startParsed)
-	numDaysPreceding := strconv.Itoa(int(duration.Hours() / 24))
+	numDays := utils.NumDaysBetween(startDate, endDate)
+	numDaysPreceding := strconv.Itoa(numDays)
 
 	movingAverages := service.sleepLogRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
 
@@ -270,10 +259,13 @@ func (service *analyticsService) analyzeSleep(userID string, startDate string, e
 		stability = "volatile"
 	}
 
+	granularity := utils.Granularity(numDays)
+
 	// topSleepQualityTags := service.sleepLogRepository.SleepQualityTagFrequency(userID, startDate, endDate)
 
 	sleepMetrics := &models.SleepMetric{
 		UserID:        userID,
+		Granularity:   granularity,
 		StartDate:     startDate,
 		EndDate:       endDate,
 		AvgSleepHours: avgSleepHours,
