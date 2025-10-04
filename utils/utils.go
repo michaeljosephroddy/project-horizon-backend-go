@@ -101,7 +101,7 @@ func DetermineTrend(data []models.MovingAverage) string {
 			trend = "flat"
 		}
 	} else {
-		trend = "not enough data"
+		trend = ""
 	}
 	return trend
 }

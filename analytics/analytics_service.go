@@ -23,6 +23,14 @@ func NewAnalyticsService(moodLogRepository *database.MoodLogRepository, sleepLog
 	}
 }
 
+const (
+	greaterThanOrEual    = ">="
+	minMoodRatingGoodDay = "6"
+	positiveMoodCategory = "1"
+	tagPercentage        = "50"
+	topMoodIndex         = 0
+)
+
 func (service *analyticsService) analyzeMood(userID string, startDate string, endDate string) *models.MoodMetric {
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
@@ -43,7 +51,7 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 
 	switch {
 	case standardDeviation == 0:
-		stability = "not enough data" // e.g., only 1 data point
+		stability = "" // e.g., only 1 data point
 	case standardDeviation < 1.5:
 		stability = "stable"
 	case standardDeviation < 3:
@@ -67,7 +75,7 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 	})
 
 	// TODO fix magic strings
-	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, ">=", "6", "1", "50")
+	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingGoodDay, positiveMoodCategory, tagPercentage)
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
 	// TODO fix magic strings
@@ -122,37 +130,39 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models.MoodMetric) models.MoodDiff {
 
 	var avgMoodPercentChange float64
-	if previousPeriod.AvgMoodRating != 0.0 {
+	if previousPeriod.AvgMoodRating > 0.0 {
 		avgMoodPercentChange = utils.PercentChange(currentPeriod.AvgMoodRating, previousPeriod.AvgMoodRating)
 	}
 
-	trendShift := fmt.Sprintf("%s -> %s", previousPeriod.MoodTrend, currentPeriod.MoodTrend)
+	var trendShift string
+	if previousPeriod.MoodTrend != "" {
+		trendShift = fmt.Sprintf("%s -> %s", previousPeriod.MoodTrend, currentPeriod.MoodTrend)
+	} else {
+		trendShift = ""
+	}
 
 	var movingAvgPercentChange float64
-	if previousPeriod.MovingAvg != 0.0 {
+	if previousPeriod.MovingAvg > 0.0 {
 		movingAvgPercentChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
 	}
 
-	stabilityShift := fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
+	var stabilityShift string
+	if previousPeriod.Stability != "" {
+		stabilityShift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
+	}
 
 	var stabilityPercentChange float64
-	if previousPeriod.StdDeviation != 0.0 {
+	if previousPeriod.StdDeviation > 0.0 {
 		stabilityPercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
 	}
 
 	// TODO wirte utility method
 	var topMoodShift string
-	if len(previousPeriod.TopMoods) >= 1 && len(currentPeriod.TopMoods) == 0 {
-		topMoodShift = fmt.Sprintf("%s -> %s", previousPeriod.TopMoods[0].TagName, "not enough data")
-	} else if len(previousPeriod.TopMoods) == 0 && len(currentPeriod.TopMoods) >= 1 {
-		topMoodShift = fmt.Sprintf("%s -> %s", "not enough data", currentPeriod.TopMoods[0].TagName)
-	} else if len(previousPeriod.TopMoods) >= 1 && len(currentPeriod.TopMoods) >= 1 {
-		topMoodShift = fmt.Sprintf("%s -> %s", previousPeriod.TopMoods[0].TagName, currentPeriod.TopMoods[0].TagName)
-	} else {
-		topMoodShift = "not enough data -> not enough data"
+	if utils.BothContainValues(currentPeriod.TopMoods, previousPeriod.TopMoods) {
+		previousMood := previousPeriod.TopMoods[topMoodIndex]
+		currentMood := currentPeriod.TopMoods[topMoodIndex]
+		topMoodShift = fmt.Sprintf("%s -> %s", previousMood.TagName, currentMood.TagName)
 	}
-
-	topMoodIndex := 0
 
 	var topMoodPercentChange string
 	if utils.BothContainValues(currentPeriod.TopMoods, previousPeriod.TopMoods) {
@@ -194,16 +204,46 @@ func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models
 	}
 
 	// TODO same here could break out repetetive len() - len()
-	positiveDaysChange := utils.DifferenceInLength(currentPeriod.PositiveDays, previousPeriod.PositiveDays)
-	neutralDaysChange := utils.DifferenceInLength(currentPeriod.NeutralDays, previousPeriod.NeutralDays)
-	negativeDaysChange := utils.DifferenceInLength(currentPeriod.NeutralDays, previousPeriod.NeutralDays)
-	clinicalDaysChange := utils.DifferenceInLength(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays)
+	var positiveDaysChange int
+	if utils.BothContainValues(currentPeriod.PositiveDays, previousPeriod.PositiveDays) {
+		positiveDaysChange = utils.DifferenceInLength(currentPeriod.PositiveDays, previousPeriod.PositiveDays)
+	}
+
+	var neutralDaysChange int
+	if utils.BothContainValues(currentPeriod.NeutralDays, previousPeriod.NeutralDays) {
+		neutralDaysChange = utils.DifferenceInLength(currentPeriod.NeutralDays, previousPeriod.NeutralDays)
+	}
+
+	var negativeDaysChange int
+	if utils.BothContainValues(currentPeriod.NegativeDays, previousPeriod.NegativeDays) {
+		negativeDaysChange = utils.DifferenceInLength(currentPeriod.NegativeDays, previousPeriod.NegativeDays)
+	}
+
+	var clinicalDaysChange int
+	if utils.BothContainValues(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays) {
+		clinicalDaysChange = utils.DifferenceInLength(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays)
+	}
 
 	// TODO same here could break out repetetive len() - len()
-	longestPositiveStreakChange := utils.DifferenceInLength(currentPeriod.PositiveStreaks, previousPeriod.PositiveStreaks)
-	longestNeutralStreakChange := utils.DifferenceInLength(currentPeriod.NeutralStreaks, previousPeriod.NeutralStreaks)
-	longestNegativeStreakChange := utils.DifferenceInLength(currentPeriod.NegativeStreaks, previousPeriod.NegativeStreaks)
-	longestClinicalStreakChange := utils.DifferenceInLength(currentPeriod.ClinicalStreaks, previousPeriod.ClinicalStreaks)
+	var positiveStreakChange int
+	if utils.BothContainValues(currentPeriod.PositiveStreaks, previousPeriod.PositiveStreaks) {
+		positiveStreakChange = utils.DifferenceInLength(currentPeriod.PositiveStreaks, previousPeriod.PositiveStreaks)
+	}
+
+	var neutralStreakChange int
+	if utils.BothContainValues(currentPeriod.NeutralStreaks, previousPeriod.NeutralStreaks) {
+		neutralStreakChange = utils.DifferenceInLength(currentPeriod.NeutralStreaks, previousPeriod.NeutralStreaks)
+	}
+
+	var negativeStreakChange int
+	if utils.BothContainValues(currentPeriod.NegativeStreaks, previousPeriod.NegativeStreaks) {
+		negativeStreakChange = utils.DifferenceInLength(currentPeriod.NegativeStreaks, previousPeriod.NegativeStreaks)
+	}
+
+	var clinicalStreakChange int
+	if utils.BothContainValues(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays) {
+		clinicalStreakChange = utils.DifferenceInLength(currentPeriod.ClinicalStreaks, previousPeriod.ClinicalStreaks)
+	}
 
 	moodDiffs := models.MoodDiff{
 		AvgMoodPercentChange:             avgMoodPercentChange,
@@ -221,10 +261,10 @@ func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models
 		NeutralDaysChange:                neutralDaysChange,
 		NegativeDaysChange:               negativeDaysChange,
 		ClinicalDaysChange:               clinicalDaysChange,
-		LongestPositiveStreakChange:      longestPositiveStreakChange,
-		LongestNeutralStreakChange:       longestNeutralStreakChange,
-		LongestNegativeStreakChange:      longestNegativeStreakChange,
-		LongestClinicalStreakChange:      longestClinicalStreakChange,
+		PositiveStreakChange:             positiveStreakChange,
+		NeutralStreakChange:              neutralStreakChange,
+		NegativeStreakChange:             negativeStreakChange,
+		ClinicalStreakChange:             clinicalStreakChange,
 	}
 
 	return moodDiffs
@@ -240,7 +280,7 @@ func (service *analyticsService) analyzeSleep(userID string, startDate string, e
 	movingAverages := service.sleepLogRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
 
 	var movingAvg float64
-	if len(movingAverages) != 1 {
+	if len(movingAverages) > 1 {
 		movingAvg = movingAverages[len(movingAverages)-1].MovingAvg
 	}
 

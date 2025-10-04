@@ -16,8 +16,8 @@ type MoodDiff struct {
 	NeutralDaysChange                int     `json:"neutralDaysChange"`
 	NegativeDaysChange               int     `json:"negativeDaysChange"` // -2
 	ClinicalDaysChange               int     `json:"clinicalDaysChange"`
-	LongestPositiveStreakChange      int     `json:"longestPositiveStreakChange"` // +2
-	LongestNeutralStreakChange       int     `json:"longestNeutralStreakChange"`
-	LongestNegativeStreakChange      int     `json:"longestNegativeStreakChange"` // -1
-	LongestClinicalStreakChange      int     `json:"longestClinicalStreakChange"`
+	PositiveStreakChange             int     `json:"positiveStreakChange"` // +2
+	NeutralStreakChange              int     `json:"neutralStreakChange"`
+	NegativeStreakChange             int     `json:"negativeStreakChange"` // -1
+	ClinicalStreakChange             int     `json:"clinicalStreakChange"`
 }
