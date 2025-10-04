@@ -44,7 +44,7 @@ func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate string, e
 	var movingAverages []models.MovingAverage
 
 	for rows.Next() {
-
+		// TODO fix bug converting null to string when sd = 21 and ed = 28
 		scanErr := rows.Scan(
 			&movingAvg.Date,
 			&movingAvg.MovingAvg,

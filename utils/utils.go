@@ -80,16 +80,18 @@ func PreviousDates(startDate string, endDate string) (string, string) {
 	endDateParsed, _ := time.Parse(layout, endDate)
 	diff := endDateParsed.Sub(startDateParsed)
 	numDays := int(diff.Hours() / 24)
-	previousStart := startDateParsed.AddDate(0, 0, -numDays).Format(layout)
-	previousEnd := startDateParsed.AddDate(0, 0, -1).Format(layout)
-	return previousStart, previousEnd
+	previousStartDate := startDateParsed.AddDate(0, 0, -numDays).Format(layout)
+	previousEndDate := startDateParsed.AddDate(0, 0, -1).Format(layout)
+	return previousStartDate, previousEndDate
 }
 
 func DetermineTrend(data []models.MovingAverage) string {
 	var trend string
+	lastIndex := len(data) - 1
+	secondLastIndex := len(data) - 2
 	if len(data) >= 2 {
-		last := data[len(data)-1]
-		prev := data[len(data)-2]
+		last := data[lastIndex]
+		prev := data[secondLastIndex]
 		switch {
 		case last.MovingAvg > prev.MovingAvg:
 			trend = "increasing"
@@ -125,4 +127,16 @@ func NumDaysBetween(startDate string, endDate string) int {
 	endDateParsed, _ := time.Parse(layout, endDate)
 	diff := endDateParsed.Sub(startDateParsed)
 	return int(diff.Hours() / 24)
+}
+
+func PercentChange(a, b float64) float64 {
+	return ((a - b) / b) * 100
+}
+
+func BothContainValues[T any](a, b []T) bool {
+	return len(a) != 0 && len(b) != 0
+}
+
+func DifferenceInLength[T any](a, b []T) int {
+	return len(a) - len(b)
 }

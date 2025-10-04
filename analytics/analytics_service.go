@@ -119,89 +119,91 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 	return moodMetrics
 }
 
-func (service *analyticsService) moodDiffs(current, previous *models.MoodMetric) models.MoodDiff {
+func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models.MoodMetric) models.MoodDiff {
 
 	var avgMoodPercentChange float64
-	if previous.AvgMoodRating != 0.0 {
-		avgMoodPercentChange = ((current.AvgMoodRating - previous.AvgMoodRating) / previous.AvgMoodRating) * 100
+	if previousPeriod.AvgMoodRating != 0.0 {
+		avgMoodPercentChange = utils.PercentChange(currentPeriod.AvgMoodRating, previousPeriod.AvgMoodRating)
 	}
 
-	trendShift := fmt.Sprintf("%s -> %s", previous.MoodTrend, current.MoodTrend)
+	trendShift := fmt.Sprintf("%s -> %s", previousPeriod.MoodTrend, currentPeriod.MoodTrend)
 
 	var movingAvgPercentChange float64
-	if previous.MovingAvg != 0.0 {
-		fmt.Println(previous.MovingAvg)
-		movingAvgPercentChange = ((current.MovingAvg - previous.MovingAvg) / previous.MovingAvg) * 100
+	if previousPeriod.MovingAvg != 0.0 {
+		movingAvgPercentChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
 	}
 
-	stabilityShift := fmt.Sprintf("%s -> %s", previous.Stability, current.Stability)
+	stabilityShift := fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
 
 	var stabilityPercentChange float64
-	if previous.StdDeviation != 0.0 {
-		stabilityPercentChange = ((current.StdDeviation - previous.StdDeviation) / previous.StdDeviation) * 100
+	if previousPeriod.StdDeviation != 0.0 {
+		stabilityPercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
 	}
 
 	// TODO wirte utility method
 	var topMoodShift string
-	if len(previous.TopMoods) >= 1 && len(current.TopMoods) == 0 {
-		topMoodShift = fmt.Sprintf("%s -> %s", previous.TopMoods[0].TagName, "not enough data")
-	} else if len(previous.TopMoods) == 0 && len(current.TopMoods) >= 1 {
-		topMoodShift = fmt.Sprintf("%s -> %s", "not enough data", current.TopMoods[0].TagName)
-	} else if len(previous.TopMoods) >= 1 && len(current.TopMoods) >= 1 {
-		topMoodShift = fmt.Sprintf("%s -> %s", previous.TopMoods[0].TagName, current.TopMoods[0].TagName)
+	if len(previousPeriod.TopMoods) >= 1 && len(currentPeriod.TopMoods) == 0 {
+		topMoodShift = fmt.Sprintf("%s -> %s", previousPeriod.TopMoods[0].TagName, "not enough data")
+	} else if len(previousPeriod.TopMoods) == 0 && len(currentPeriod.TopMoods) >= 1 {
+		topMoodShift = fmt.Sprintf("%s -> %s", "not enough data", currentPeriod.TopMoods[0].TagName)
+	} else if len(previousPeriod.TopMoods) >= 1 && len(currentPeriod.TopMoods) >= 1 {
+		topMoodShift = fmt.Sprintf("%s -> %s", previousPeriod.TopMoods[0].TagName, currentPeriod.TopMoods[0].TagName)
 	} else {
 		topMoodShift = "not enough data -> not enough data"
 	}
 
+	topMoodIndex := 0
+
 	var topMoodPercentChange string
-	if len(previous.TopMoods) != 0 && len(current.TopMoods) != 0 {
-		previousMood := utils.FindMood(current.TopMoods, previous.TopMoods)
-		topMoodPercentChange = fmt.Sprintf("%s %f", current.TopMoods[0].TagName, ((current.TopMoods[0].Percentage-previousMood.Percentage)/previousMood.Percentage)*100)
+	if utils.BothContainValues(currentPeriod.TopMoods, previousPeriod.TopMoods) {
+		previousMood := utils.FindMood(currentPeriod.TopMoods, previousPeriod.TopMoods)
+		currentMood := currentPeriod.TopMoods[topMoodIndex]
+		topMoodPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, utils.PercentChange(currentMood.Percentage, previousMood.Percentage))
 	}
 
 	var topMoodPositiveDaysPercentChange string
-	if len(previous.TopMoodsPositiveDays) != 0 && len(current.TopMoodsPositiveDays) != 0 {
-		previousMood := utils.FindMood(current.TopMoodsPositiveDays, previous.TopMoodsPositiveDays)
-		// TODO maybe break this out into a utility function
-		percentChange := ((current.TopMoodsPositiveDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
-		topMoodPositiveDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsPositiveDays[0].TagName, percentChange)
+	if utils.BothContainValues(currentPeriod.TopMoodsPositiveDays, previousPeriod.TopMoodsPositiveDays) {
+		previousMood := utils.FindMood(currentPeriod.TopMoodsPositiveDays, previousPeriod.TopMoodsPositiveDays)
+		currentMood := currentPeriod.TopMoodsPositiveDays[topMoodIndex]
+		percentChange := utils.PercentChange(currentMood.Percentage, previousMood.Percentage)
+		topMoodPositiveDaysPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, percentChange)
 	}
 
 	var topMoodNeutralDaysPercentChange string
-	if len(previous.TopMoodsNeutralDays) != 0 && len(current.TopMoodsNeutralDays) != 0 {
-		previousMood := utils.FindMood(current.TopMoodsNeutralDays, previous.TopMoodsNeutralDays)
-		// TODO maybe break this out into a utility function
-		percentChange := ((current.TopMoodsNeutralDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
-		topMoodNeutralDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsNeutralDays[0].TagName, percentChange)
+	if utils.BothContainValues(currentPeriod.TopMoodsNeutralDays, previousPeriod.TopMoodsNeutralDays) {
+		previousMood := utils.FindMood(currentPeriod.TopMoodsNeutralDays, previousPeriod.TopMoodsNeutralDays)
+		currentMood := currentPeriod.TopMoodsNeutralDays[topMoodIndex]
+		percentChange := utils.PercentChange(currentMood.Percentage, previousMood.Percentage)
+		topMoodNeutralDaysPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, percentChange)
 	}
 
 	var topMoodNegativeDaysPercentChange string
-	if len(previous.TopMoodsNegativeDays) != 0 && len(current.TopMoodsNegativeDays) != 0 {
-		previousMood := utils.FindMood(current.TopMoodsNegativeDays, previous.TopMoodsNegativeDays)
-		// TODO maybe break this out into a utility function
-		percentChange := ((current.TopMoodsNegativeDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
-		topMoodNegativeDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsNegativeDays[0].TagName, percentChange)
+	if utils.BothContainValues(currentPeriod.TopMoodsNegativeDays, previousPeriod.TopMoodsNegativeDays) {
+		previousMood := utils.FindMood(currentPeriod.TopMoodsNegativeDays, previousPeriod.TopMoodsNegativeDays)
+		currentMood := currentPeriod.TopMoodsNegativeDays[topMoodIndex]
+		percentChange := utils.PercentChange(currentMood.Percentage, previousMood.Percentage)
+		topMoodNegativeDaysPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, percentChange)
 	}
 
 	var topMoodClinicalDaysPercentChange string
-	if len(previous.TopMoodsClinicalDays) != 0 && len(current.TopMoodsClinicalDays) != 0 {
-		previousMood := utils.FindMood(current.TopMoodsClinicalDays, previous.TopMoodsClinicalDays)
-		// TODO maybe break this out into a utility function
-		percentChange := ((current.TopMoodsClinicalDays[0].Percentage - previousMood.Percentage) / previousMood.Percentage) * 100
-		topMoodClinicalDaysPercentChange = fmt.Sprintf("%s %f", current.TopMoodsClinicalDays[0].TagName, percentChange)
+	if utils.BothContainValues(currentPeriod.TopMoodsClinicalDays, previousPeriod.TopMoodsClinicalDays) {
+		previousMood := utils.FindMood(currentPeriod.TopMoodsClinicalDays, previousPeriod.TopMoodsClinicalDays)
+		currentMood := currentPeriod.TopMoodsClinicalDays[topMoodIndex]
+		percentChange := utils.PercentChange(currentMood.Percentage, previousMood.Percentage)
+		topMoodClinicalDaysPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, percentChange)
 	}
 
 	// TODO same here could break out repetetive len() - len()
-	positiveDaysChange := len(current.PositiveDays) - len(previous.PositiveDays)
-	neutralDaysChange := len(current.NeutralDays) - len(previous.NeutralDays)
-	negativeDaysChange := len(current.NegativeDays) - len(previous.NegativeDays)
-	clinicalDaysChange := len(current.ClinicalDays) - len(previous.ClinicalDays)
+	positiveDaysChange := utils.DifferenceInLength(currentPeriod.PositiveDays, previousPeriod.PositiveDays)
+	neutralDaysChange := utils.DifferenceInLength(currentPeriod.NeutralDays, previousPeriod.NeutralDays)
+	negativeDaysChange := utils.DifferenceInLength(currentPeriod.NeutralDays, previousPeriod.NeutralDays)
+	clinicalDaysChange := utils.DifferenceInLength(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays)
 
 	// TODO same here could break out repetetive len() - len()
-	longestPositiveStreakChange := len(current.PositiveStreaks) - len(previous.PositiveStreaks)
-	longestNeutralStreakChange := len(current.NeutralStreaks) - len(previous.NeutralStreaks)
-	longestNegativeStreakChange := len(current.NegativeStreaks) - len(previous.NegativeStreaks)
-	longestClinicalStreakChange := len(current.ClinicalStreaks) - len(previous.ClinicalStreaks)
+	longestPositiveStreakChange := utils.DifferenceInLength(currentPeriod.PositiveStreaks, previousPeriod.PositiveStreaks)
+	longestNeutralStreakChange := utils.DifferenceInLength(currentPeriod.NeutralStreaks, previousPeriod.NeutralStreaks)
+	longestNegativeStreakChange := utils.DifferenceInLength(currentPeriod.NegativeStreaks, previousPeriod.NegativeStreaks)
+	longestClinicalStreakChange := utils.DifferenceInLength(currentPeriod.ClinicalStreaks, previousPeriod.ClinicalStreaks)
 
 	moodDiffs := models.MoodDiff{
 		AvgMoodPercentChange:             avgMoodPercentChange,
