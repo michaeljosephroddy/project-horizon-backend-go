@@ -274,6 +274,10 @@ func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string
 		moodTagFrequencies = append(moodTagFrequencies, moodTagFrequency)
 	}
 
+	slices.SortFunc(moodTagFrequencies, func(a, b models.TagFrequency) int {
+		return int(b.Percentage - a.Percentage)
+	})
+
 	if moodTagFrequencies == nil {
 		return make([]models.TagFrequency, 0)
 	}

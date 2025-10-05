@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"slices"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
@@ -24,12 +25,19 @@ func (slr *SleepLogRepository) AvgSleepHours(userID string, startDate string, en
 		panic(queryErr)
 	}
 
-	var avgSleepHours float64
-	if next := rows.Next(); next {
-		rows.Scan(&avgSleepHours)
+	var avgSleepHours sql.NullFloat64
+	for rows.Next() {
+		scanErr := rows.Scan(&avgSleepHours)
+		if scanErr != nil {
+			panic(scanErr)
+		}
 	}
 
-	return avgSleepHours
+	if !avgSleepHours.Valid {
+		return 0
+	}
+
+	return avgSleepHours.Float64
 }
 
 func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate string, endDate string, numDaysPreceding string) []models.MovingAverage {
@@ -45,12 +53,24 @@ func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate string, e
 
 	for rows.Next() {
 		// TODO fix bug converting null to string when sd = 21 and ed = 28
+
+		var date sql.NullString
+		var movingAvgVal sql.NullFloat64
+
 		scanErr := rows.Scan(
-			&movingAvg.Date,
-			&movingAvg.MovingAvg,
+			&date,
+			&movingAvgVal,
 		)
 		if scanErr != nil {
 			panic(scanErr)
+		}
+
+		if valid := date.Valid; valid {
+			movingAvg.Date = date.String
+		}
+
+		if valid := movingAvgVal.Valid; valid {
+			movingAvg.MovingAvg = movingAvgVal.Float64
 		}
 
 		movingAverages = append(movingAverages, movingAvg)
@@ -87,11 +107,37 @@ func (slr *SleepLogRepository) StandardDeviation(userID string, startDate string
 	return standardDeviation.Float64
 }
 
-/* func (slr *SleepLogRepository) SleepQualityTagFrequency(userID string, startDate string, endDate string) []models.TagFrequency {
+func (slr *SleepLogRepository) SleepQualityTagFrequency(userID string, startDate string, endDate string) []models.TagFrequency {
 
 	rows, queryErr := slr.db.Query(sleepQualityTagFrequencyQuery, userID, startDate, endDate)
 	if queryErr != nil {
 		panic(queryErr)
 	}
 
-} */
+	var sleepTagFrequency models.TagFrequency
+	var sleepTagFrequencies []models.TagFrequency
+
+	for rows.Next() {
+		scanErr := rows.Scan(
+			&sleepTagFrequency.TagName,
+			&sleepTagFrequency.Count,
+			&sleepTagFrequency.Percentage,
+		)
+		if scanErr != nil {
+			panic(scanErr)
+		}
+
+		sleepTagFrequencies = append(sleepTagFrequencies, sleepTagFrequency)
+	}
+
+	if sleepTagFrequencies == nil {
+		return make([]models.TagFrequency, 0)
+	}
+
+	slices.SortFunc(sleepTagFrequencies, func(a, b models.TagFrequency) int {
+		return int(b.Percentage - a.Percentage)
+	})
+
+	return sleepTagFrequencies
+
+}

@@ -2,7 +2,6 @@ package analytics
 
 import (
 	"fmt"
-	"slices"
 	"strconv"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
@@ -31,7 +30,7 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 	movingAverages := service.moodLogRepository.MovingAverages(userID, startDate, endDate, numDaysPreceding)
 
 	var movingAvg float64
-	if len(movingAverages) >= 2 {
+	if len(movingAverages) > 0 {
 		lastIndex := len(movingAverages) - 1
 		movingAvg = movingAverages[lastIndex].MovingAvg
 	}
@@ -65,10 +64,6 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 	avgMoodRating := service.moodLogRepository.AvgMoodRating(userID, startDate, endDate)
 
 	mtfPeriod := service.moodLogRepository.MoodTagFrequencies(userID, startDate, endDate)
-
-	slices.SortFunc(mtfPeriod, func(a, b models.TagFrequency) int {
-		return int(b.Percentage - a.Percentage)
-	})
 
 	const (
 		greaterThanOrEual        = ">="
@@ -236,7 +231,6 @@ func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models
 		clinicalDaysChange = utils.DifferenceInLength(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays)
 	}
 
-	// TODO same here could break out repetetive len() - len()
 	var positiveStreakChange int
 	if utils.BothContainValues(currentPeriod.PositiveStreaks, previousPeriod.PositiveStreaks) {
 		positiveStreakChange = utils.DifferenceInLength(currentPeriod.PositiveStreaks, previousPeriod.PositiveStreaks)
@@ -292,7 +286,7 @@ func (service *analyticsService) analyzeSleep(userID string, startDate string, e
 	movingAverages := service.sleepLogRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
 
 	var movingAvg float64
-	if len(movingAverages) > 1 {
+	if len(movingAverages) > 0 {
 		lastIndex := len(movingAverages) - 1
 		movingAvg = movingAverages[lastIndex].MovingAvg
 	}
@@ -325,18 +319,19 @@ func (service *analyticsService) analyzeSleep(userID string, startDate string, e
 
 	granularity := utils.Granularity(numDays)
 
-	// topSleepQualityTags := service.sleepLogRepository.SleepQualityTagFrequency(userID, startDate, endDate)
+	topSleepQualityTags := service.sleepLogRepository.SleepQualityTagFrequency(userID, startDate, endDate)
 
 	sleepMetrics := &models.SleepMetric{
-		UserID:        userID,
-		Granularity:   granularity,
-		StartDate:     startDate,
-		EndDate:       endDate,
-		AvgSleepHours: avgSleepHours,
-		MovingAvg:     movingAvg,
-		SleepTrend:    sleepTrend,
-		StdDeviation:  standardDeviation,
-		Stability:     stability,
+		UserID:              userID,
+		Granularity:         granularity,
+		StartDate:           startDate,
+		EndDate:             endDate,
+		AvgSleepHours:       avgSleepHours,
+		MovingAvg:           movingAvg,
+		SleepTrend:          sleepTrend,
+		StdDeviation:        standardDeviation,
+		Stability:           stability,
+		TopSleepQualityTags: topSleepQualityTags,
 	}
 
 	return sleepMetrics
