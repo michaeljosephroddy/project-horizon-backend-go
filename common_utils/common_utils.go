@@ -1,0 +1,19 @@
+// common utils
+package common_utils
+
+import (
+	"regexp"
+	"slices"
+	"strings"
+)
+
+func MatchURL(pattern string, url string) bool {
+	re := regexp.MustCompile(pattern)
+	return re.MatchString(url)
+}
+
+func GetUserIDFromPath(path string) string {
+	splitPath := strings.Split(path, "/")
+	userIDIndex := slices.Index(splitPath, "users") + 1
+	return splitPath[userIDIndex]
+}

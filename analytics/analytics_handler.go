@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/analytics_utils"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/common_utils"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/utils"
 )
 
 type AnalyticsHandler struct {
@@ -27,9 +28,9 @@ func NewAnalyticsHandler(analyticsService *analyticsService) *AnalyticsHandler {
 
 func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, request *http.Request) {
 	switch {
-	case utils.MatchURL(analyticsUsersMood, request.URL.Path):
+	case common_utils.MatchURL(analyticsUsersMood, request.URL.Path):
 
-		userID := utils.GetUserIDFromPath(request.URL.Path)
+		userID := common_utils.GetUserIDFromPath(request.URL.Path)
 		startDate := request.URL.Query().Get("startDate")
 		endDate := request.URL.Query().Get("endDate")
 
@@ -40,9 +41,9 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 		writer.Header().Set("Content-Type", "application/json")
 		writer.Write(body)
 
-	case utils.MatchURL(analyticsUsersSleep, request.URL.Path):
+	case common_utils.MatchURL(analyticsUsersSleep, request.URL.Path):
 
-		userID := utils.GetUserIDFromPath(request.URL.Path)
+		userID := common_utils.GetUserIDFromPath(request.URL.Path)
 		startDate := request.URL.Query().Get("startDate")
 		endDate := request.URL.Query().Get("endDate")
 
@@ -53,9 +54,9 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 		writer.Header().Set("Content-Type", "application/json")
 		writer.Write(body)
 
-	/* case utils.MatchURL(analyticsUsersMedication, request.URL.Path):
+	/* case common_utils.MatchURL(analyticsUsersMedication, request.URL.Path):
 
-	userID := utils.GetUserIDFromPath(request.URL.Path)
+	userID := common_utils.GetUserIDFromPath(request.URL.Path)
 	startDate := request.URL.Query().Get("startDate")
 	endDate := request.URL.Query().Get("endDate")
 
@@ -76,7 +77,7 @@ func (handler *AnalyticsHandler) moodMetrics(userID string, startDate string, en
 	current := handler.analyticsService.analyzeMood(userID, startDate, endDate)
 	fmt.Println(startDate, " ", endDate, current.MovingAvg)
 
-	previousStart, previousEnd := utils.PreviousDates(startDate, endDate)
+	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
 
 	previous := handler.analyticsService.analyzeMood(userID, previousStart, previousEnd)
 	fmt.Println(previousStart, " ", previousEnd, previous.MovingAvg)

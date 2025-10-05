@@ -1,24 +1,12 @@
-package utils
+package analytics_utils
 
 import (
-	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 	"time"
 )
-
-func MatchURL(pattern string, url string) bool {
-	re := regexp.MustCompile(pattern)
-	return re.MatchString(url)
-}
-
-func GetUserIDFromPath(path string) string {
-	splitPath := strings.Split(path, "/")
-	userIDIndex := slices.Index(splitPath, "users") + 1
-	return splitPath[userIDIndex]
-}
 
 func MoodTagFrequencies(days []models.Day) []models.TagFrequency {
 	var tags []string
@@ -165,4 +153,27 @@ func BothContainValues[T any](a, b []T) bool {
 
 func DifferenceInLength[T any](a, b []T) int {
 	return len(a) - len(b)
+}
+
+func StdDeviation(standardDeviation float64, noData float64, minModerateVal float64, minVolatileVal float64) string {
+	const (
+		stable   = "stable"
+		moderate = "moderate"
+		volatile = "volatile"
+	)
+
+	var stability string
+
+	switch {
+	case standardDeviation == noData:
+		stability = "" // e.g., only 1 data point
+	case standardDeviation < minModerateVal:
+		stability = stable
+	case standardDeviation < minVolatileVal:
+		stability = moderate
+	default:
+		stability = volatile
+
+	}
+	return stability
 }
