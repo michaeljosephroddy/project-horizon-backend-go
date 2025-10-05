@@ -20,40 +20,44 @@ func GetUserIDFromPath(path string) string {
 	return splitPath[userIDIndex]
 }
 
-func MoodTagFrequencies(data []models.Day) []models.TagFrequency {
+func MoodTagFrequencies(days []models.Day) []models.TagFrequency {
 	var tags []string
-	for i := 0; i < len(data); i++ {
-		for _, val := range data[i].MoodTagFrequencies {
-			tags = append(tags, val.TagName)
+	for _, day := range days {
+		for _, mtf := range day.MoodTagFrequencies {
+			tags = append(tags, mtf.TagName)
 		}
 	}
+
+	const (
+		zeroVal      = 0.0
+		incrementVal = 1.0
+	)
 
 	freq := make(map[string]float64)
 	for _, tag := range tags {
 		if _, exists := freq[tag]; !exists {
-			freq[tag] = 0.0
+			freq[tag] = zeroVal
 		}
-		freq[tag] = freq[tag] + 1.0
+
+		freq[tag] = freq[tag] + incrementVal
 	}
 
 	var moodTagFrequencies []models.TagFrequency
 	for key, val := range freq {
+		count := int(val)
+		percentage := (val / float64(len(tags))) * 100.0
+
 		mtf := models.TagFrequency{
-			Count:      int(val),
+			Count:      count,
 			TagName:    key,
-			Percentage: (val / float64(len(tags))) * 100.0,
+			Percentage: percentage,
 		}
+
 		moodTagFrequencies = append(moodTagFrequencies, mtf)
 	}
 
 	slices.SortFunc(moodTagFrequencies, func(a, b models.TagFrequency) int {
-		if a.Percentage > b.Percentage {
-			return -1
-		} else if a.Percentage < b.Percentage {
-			return 1
-		} else {
-			return 0
-		}
+		return int(b.Percentage - a.Percentage)
 	})
 
 	if moodTagFrequencies == nil {
@@ -63,7 +67,7 @@ func MoodTagFrequencies(data []models.Day) []models.TagFrequency {
 	return moodTagFrequencies
 }
 
-func FindMood(currentMoods, previousMoods []models.TagFrequency) models.TagFrequency {
+func FindPreviousMood(currentMoods, previousMoods []models.TagFrequency) models.TagFrequency {
 	var previousMood models.TagFrequency
 	for _, mood := range previousMoods {
 		if strings.EqualFold(mood.TagName, currentMoods[0].TagName) {
@@ -75,7 +79,7 @@ func FindMood(currentMoods, previousMoods []models.TagFrequency) models.TagFrequ
 }
 
 func PreviousDates(startDate string, endDate string) (string, string) {
-	layout := "2006-01-02"
+	const layout = "2006-01-02"
 	startDateParsed, _ := time.Parse(layout, startDate)
 	endDateParsed, _ := time.Parse(layout, endDate)
 	diff := endDateParsed.Sub(startDateParsed)
@@ -85,44 +89,66 @@ func PreviousDates(startDate string, endDate string) (string, string) {
 	return previousStartDate, previousEndDate
 }
 
-func DetermineTrend(data []models.MovingAverage) string {
+func Trend(movingAvergaes []models.MovingAverage) string {
+	const (
+		increasing = "increasing"
+		decreasing = "decreasing"
+		flat       = "flat"
+	)
+
 	var trend string
-	lastIndex := len(data) - 1
-	secondLastIndex := len(data) - 2
-	if len(data) >= 2 {
-		last := data[lastIndex]
-		prev := data[secondLastIndex]
+	if len(movingAvergaes) >= 2 {
+		lastIndex := len(movingAvergaes) - 1
+		secondLastIndex := len(movingAvergaes) - 2
+
+		last := movingAvergaes[lastIndex]
+		prev := movingAvergaes[secondLastIndex]
+
 		switch {
 		case last.MovingAvg > prev.MovingAvg:
-			trend = "increasing"
+			trend = increasing
 		case last.MovingAvg < prev.MovingAvg:
-			trend = "decreasing"
+			trend = decreasing
 		default:
-			trend = "flat"
+			trend = flat
 		}
+
 	} else {
 		trend = ""
 	}
+
 	return trend
 }
 
 func Granularity(numDays int) string {
+	const (
+		maxWeekly   = 7
+		maxMonthly  = 28
+		max3Months  = 84
+		weekly      = "weekly"
+		monthly     = "monthly"
+		threeMonths = "3-months"
+		custom      = "custom"
+	)
+
 	var granularity string
+
 	switch {
-	case numDays <= 7:
-		granularity = "weekly"
-	case numDays <= 28:
-		granularity = "monthly"
-	case numDays <= 84:
-		granularity = "3-months"
+	case numDays <= maxWeekly:
+		granularity = weekly
+	case numDays <= maxMonthly:
+		granularity = monthly
+	case numDays <= max3Months:
+		granularity = threeMonths
 	default:
-		granularity = "custom"
+		granularity = custom
 	}
+
 	return granularity
 }
 
 func NumDaysBetween(startDate string, endDate string) int {
-	layout := "2006-01-02" // Correct Go layout
+	const layout = "2006-01-02" // Correct Go layout
 	startDateParsed, _ := time.Parse(layout, startDate)
 	endDateParsed, _ := time.Parse(layout, endDate)
 	diff := endDateParsed.Sub(startDateParsed)
