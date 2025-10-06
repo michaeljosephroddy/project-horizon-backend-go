@@ -142,7 +142,7 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 	// get daily mood tag frequencies
 	for i := 0; i < len(days); i++ {
 		dailyMoodTagFrequencies := mlr.MoodTagFrequencies(userID, days[i].Date, days[i].Date)
-		slices.SortFunc(dailyMoodTagFrequencies, func(a, b models.TagFrequency) int {
+		slices.SortFunc(dailyMoodTagFrequencies, func(a, b models.TagStat) int {
 			if a.Percentage > b.Percentage {
 				return -1
 			} else if a.Percentage < b.Percentage {
@@ -152,7 +152,7 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 			}
 		})
 
-		days[i].MoodTagFrequencies = append(days[i].MoodTagFrequencies, dailyMoodTagFrequencies...)
+		days[i].TopMoods = append(days[i].TopMoods, dailyMoodTagFrequencies...)
 	}
 
 	if days == nil {
@@ -250,7 +250,7 @@ func (mlr *MoodLogRepository) MoodLogs(userID string, startDate string, endDate 
 	return moodLogs
 }
 
-func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.TagFrequency {
+func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.TagStat {
 
 	rows, queryErr := mlr.db.Query(moodTagFrequenciesQuery, userID, startDate, endDate)
 	if queryErr != nil {
@@ -258,28 +258,28 @@ func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string
 	}
 	defer rows.Close()
 
-	var moodTagFrequency models.TagFrequency
-	var moodTagFrequencies []models.TagFrequency
+	var moodTagStat models.TagStat
+	var moodTagFrequencies []models.TagStat
 
 	for rows.Next() {
 		scanErr := rows.Scan(
-			&moodTagFrequency.TagName,
-			&moodTagFrequency.Count,
-			&moodTagFrequency.Percentage,
+			&moodTagStat.TagName,
+			&moodTagStat.Count,
+			&moodTagStat.Percentage,
 		)
 		if scanErr != nil {
 			panic(scanErr)
 		}
 
-		moodTagFrequencies = append(moodTagFrequencies, moodTagFrequency)
+		moodTagFrequencies = append(moodTagFrequencies, moodTagStat)
 	}
 
-	slices.SortFunc(moodTagFrequencies, func(a, b models.TagFrequency) int {
+	slices.SortFunc(moodTagFrequencies, func(a, b models.TagStat) int {
 		return int(b.Percentage - a.Percentage)
 	})
 
 	if moodTagFrequencies == nil {
-		return make([]models.TagFrequency, 0)
+		return make([]models.TagStat, 0)
 	}
 
 	return moodTagFrequencies

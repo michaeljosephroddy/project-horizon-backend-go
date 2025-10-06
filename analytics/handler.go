@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/analytics_utils"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/common_utils"
+	analytics_utils "github.com/michaeljosephroddy/project-horizon-backend-go/analytics/utils"
+	common_utils "github.com/michaeljosephroddy/project-horizon-backend-go/common/utils"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 

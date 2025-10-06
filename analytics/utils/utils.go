@@ -1,4 +1,4 @@
-package analytics_utils
+package utils
 
 import (
 	"slices"
@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-func MoodTagFrequencies(days []models.Day) []models.TagFrequency {
+func MoodTagFrequencies(days []models.Day) []models.TagStat {
 	var tags []string
 	for _, day := range days {
-		for _, mtf := range day.MoodTagFrequencies {
+		for _, mtf := range day.TopMoods {
 			tags = append(tags, mtf.TagName)
 		}
 	}
@@ -30,12 +30,12 @@ func MoodTagFrequencies(days []models.Day) []models.TagFrequency {
 		freq[tag] = freq[tag] + incrementVal
 	}
 
-	var moodTagFrequencies []models.TagFrequency
+	var moodTagFrequencies []models.TagStat
 	for key, val := range freq {
 		count := int(val)
 		percentage := (val / float64(len(tags))) * 100.0
 
-		mtf := models.TagFrequency{
+		mtf := models.TagStat{
 			Count:      count,
 			TagName:    key,
 			Percentage: percentage,
@@ -44,19 +44,19 @@ func MoodTagFrequencies(days []models.Day) []models.TagFrequency {
 		moodTagFrequencies = append(moodTagFrequencies, mtf)
 	}
 
-	slices.SortFunc(moodTagFrequencies, func(a, b models.TagFrequency) int {
+	slices.SortFunc(moodTagFrequencies, func(a, b models.TagStat) int {
 		return int(b.Percentage - a.Percentage)
 	})
 
 	if moodTagFrequencies == nil {
-		return make([]models.TagFrequency, 0)
+		return make([]models.TagStat, 0)
 	}
 
 	return moodTagFrequencies
 }
 
-func FindPreviousMood(currentMoods, previousMoods []models.TagFrequency) models.TagFrequency {
-	var previousMood models.TagFrequency
+func FindPreviousMood(currentMoods, previousMoods []models.TagStat) models.TagStat {
+	var previousMood models.TagStat
 	for _, mood := range previousMoods {
 		if strings.EqualFold(mood.TagName, currentMoods[0].TagName) {
 			previousMood = mood

@@ -28,7 +28,7 @@ FROM   sleep_log
 WHERE  user_id = ?
        AND sleep_date BETWEEN ? AND ?;`
 
-var sleepQualityTagFrequencyQuery = `WITH tag_counts AS (
+var sleepQualityTagStatQuery = `WITH tag_counts AS (
     SELECT 
         sqt.name AS tag_name,
         COUNT(*) AS tag_count

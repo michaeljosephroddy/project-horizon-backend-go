@@ -107,34 +107,34 @@ func (slr *SleepLogRepository) StandardDeviation(userID string, startDate string
 	return standardDeviation.Float64
 }
 
-func (slr *SleepLogRepository) SleepQualityTagFrequency(userID string, startDate string, endDate string) []models.TagFrequency {
+func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate string, endDate string) []models.TagStat {
 
-	rows, queryErr := slr.db.Query(sleepQualityTagFrequencyQuery, userID, startDate, endDate)
+	rows, queryErr := slr.db.Query(sleepQualityTagStatQuery, userID, startDate, endDate)
 	if queryErr != nil {
 		panic(queryErr)
 	}
 
-	var sleepTagFrequency models.TagFrequency
-	var sleepTagFrequencies []models.TagFrequency
+	var sleepTagStat models.TagStat
+	var sleepTagFrequencies []models.TagStat
 
 	for rows.Next() {
 		scanErr := rows.Scan(
-			&sleepTagFrequency.TagName,
-			&sleepTagFrequency.Count,
-			&sleepTagFrequency.Percentage,
+			&sleepTagStat.TagName,
+			&sleepTagStat.Count,
+			&sleepTagStat.Percentage,
 		)
 		if scanErr != nil {
 			panic(scanErr)
 		}
 
-		sleepTagFrequencies = append(sleepTagFrequencies, sleepTagFrequency)
+		sleepTagFrequencies = append(sleepTagFrequencies, sleepTagStat)
 	}
 
 	if sleepTagFrequencies == nil {
-		return make([]models.TagFrequency, 0)
+		return make([]models.TagStat, 0)
 	}
 
-	slices.SortFunc(sleepTagFrequencies, func(a, b models.TagFrequency) int {
+	slices.SortFunc(sleepTagFrequencies, func(a, b models.TagStat) int {
 		return int(b.Percentage - a.Percentage)
 	})
 
