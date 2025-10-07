@@ -5,5 +5,5 @@ type Day struct {
 	DailyAvgRating float64    `json:"dailyAvgRating"`
 	MoodLogs       []MoodLog  `json:"moodLogs"`
 	SleepLogs      []SleepLog `json:"sleepLogs"`
-	TopMoods       []TagStat  `json:"topMoods"`
+	MoodTagStats   []TagStat  `json:"moodTagStats"`
 }

@@ -11,7 +11,7 @@ import (
 func MoodTagFrequencies(days []models.Day) []models.TagStat {
 	var tags []string
 	for _, day := range days {
-		for _, mtf := range day.TopMoods {
+		for _, mtf := range day.MoodTagStats {
 			tags = append(tags, mtf.TagName)
 		}
 	}

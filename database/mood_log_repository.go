@@ -152,7 +152,7 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 			}
 		})
 
-		days[i].TopMoods = append(days[i].TopMoods, dailyMoodTagFrequencies...)
+		days[i].MoodTagStats = append(days[i].MoodTagStats, dailyMoodTagFrequencies...)
 	}
 
 	if days == nil {
