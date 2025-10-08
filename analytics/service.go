@@ -238,14 +238,13 @@ func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models
 	}
 
 	moodDiffs := models.MoodDiff{
-		AvgMoodPercentChange:   avgMoodPercentChange,
-		TrendShift:             trendShift,
-		MovingAvgPercentChange: movingAvgPercentChange,
-		StabilityShift:         stabilityShift,
-		StabilityPercentChange: stabilityPercentChange,
-		TopMoodShift:           topMoodShift,
-		TopMoodPercentChange:   topMoodPercentChange,
-
+		AvgMoodPercentChange:             avgMoodPercentChange,
+		TrendShift:                       trendShift,
+		MovingAvgPercentChange:           movingAvgPercentChange,
+		StabilityShift:                   stabilityShift,
+		StabilityPercentChange:           stabilityPercentChange,
+		TopMoodShift:                     topMoodShift,
+		TopMoodPercentChange:             topMoodPercentChange,
 		TopMoodPositiveDaysPercentChange: topMoodPositiveDaysPercentChange,
 		TopMoodNeutralDaysPercentChange:  topMoodNeutralDaysPercentChange,
 		TopMoodNegativeDaysPercentChange: topMoodNegativeDaysPercentChange,

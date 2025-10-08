@@ -75,12 +75,10 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 func (handler *AnalyticsHandler) moodMetrics(userID string, startDate string, endDate string) *models.MoodMetric {
 
 	current := handler.analyticsService.analyzeMood(userID, startDate, endDate)
-	fmt.Println(startDate, " ", endDate, current.MovingAvg)
 
 	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
 
 	previous := handler.analyticsService.analyzeMood(userID, previousStart, previousEnd)
-	fmt.Println(previousStart, " ", previousEnd, previous.MovingAvg)
 
 	diffs := handler.analyticsService.moodDiffs(current, previous)
 
@@ -92,6 +90,14 @@ func (handler *AnalyticsHandler) moodMetrics(userID string, startDate string, en
 func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate string, endDate string) *models.SleepMetric {
 
 	current := handler.analyticsService.analyzeSleep(userID, startDate, endDate)
+
+	/* previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
+
+	previous := handler.analyticsService.analyzeSleep(userID, previousStart, previousEnd)
+
+	diffs := handler.analyticsService.moodDiffs(current, previous)
+
+	current.MoodDiffs = diffs */
 
 	return current
 }
