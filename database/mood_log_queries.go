@@ -145,7 +145,7 @@ ORDER  BY DATE;`
 
 var journalEntriesQuery = `SELECT *
 FROM   mood_log
-WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?`
+WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?;`
 
 var moodTagFrequenciesQuery = `WITH first_query
      AS (SELECT ml.mood_log_id,
