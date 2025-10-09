@@ -139,22 +139,6 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 		return days[i].Date < days[j].Date
 	})
 
-	// get daily mood tag frequencies
-	for i := 0; i < len(days); i++ {
-		dailyMoodTagFrequencies := mlr.MoodTagFrequencies(userID, days[i].Date, days[i].Date)
-		slices.SortFunc(dailyMoodTagFrequencies, func(a, b models.TagStat) int {
-			if a.Percentage > b.Percentage {
-				return -1
-			} else if a.Percentage < b.Percentage {
-				return 1
-			} else {
-				return 0
-			}
-		})
-
-		days[i].MoodTagStats = append(days[i].MoodTagStats, dailyMoodTagFrequencies...)
-	}
-
 	if days == nil {
 		return make([]models.Day, 0)
 	}

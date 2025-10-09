@@ -141,3 +141,39 @@ func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate stri
 	return sleepTagFrequencies
 
 }
+
+func (slr *SleepLogRepository) SleepLogs(userID string, startDate string, endDate string) []models.SleepLog {
+
+	rows, queryErr := slr.db.Query(sleepLogsQuery, userID, startDate, endDate)
+	if queryErr != nil {
+		panic(queryErr)
+	}
+
+	var sleepLog models.SleepLog
+	var sleepLogs []models.SleepLog
+
+	for rows.Next() {
+		scanErr := rows.Scan(
+			&sleepLog.SleepLogID,
+			&sleepLog.UserID,
+			&sleepLog.HoursSlept,
+			&sleepLog.SleepQualityTag,
+			&sleepLog.Note,
+			&sleepLog.SleepDate,
+			&sleepLog.CreatedAt,
+			&sleepLog.UpdatedAt,
+		)
+
+		if scanErr != nil {
+			panic(scanErr)
+		}
+
+		sleepLogs = append(sleepLogs, sleepLog)
+	}
+
+	if sleepLogs == nil {
+		return make([]models.SleepLog, 0)
+	}
+
+	return sleepLogs
+}

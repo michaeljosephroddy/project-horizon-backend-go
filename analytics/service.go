@@ -68,17 +68,25 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 
 	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
 
+	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, positiveDays)
+
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
 	neutralDays := service.moodLogRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
+
+	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, neutralDays)
 
 	mtfNeutralDays := utils.MoodTagFrequencies(neutralDays)
 
 	negativeDays := service.moodLogRepository.Days(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
 
+	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, negativeDays)
+
 	mtfNegativeDays := utils.MoodTagFrequencies(negativeDays)
 
 	clinicalDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
+
+	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, clinicalDays)
 
 	mtfClinicalDays := utils.MoodTagFrequencies(clinicalDays)
 

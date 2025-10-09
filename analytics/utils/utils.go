@@ -4,15 +4,17 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 	"time"
+
+	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
 func MoodTagFrequencies(days []models.Day) []models.TagStat {
 	var tags []string
 	for _, day := range days {
-		for _, mtf := range day.MoodTagStats {
-			tags = append(tags, mtf.TagName)
+		for _, mtf := range day.MoodLogs {
+			tags = append(tags, mtf.MoodTags...)
 		}
 	}
 
@@ -176,4 +178,19 @@ func StdDeviation(standardDeviation float64, noData float64, minModerateVal floa
 
 	}
 	return stability
+}
+
+func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []models.Day) {
+	for i, day := range days {
+		sleepLogs := slr.SleepLogs(userID, day.Date, day.Date)
+		if len(sleepLogs) == 0 {
+			days[i].SleepLogs = make([]models.SleepLog, 0)
+			continue
+		}
+		for _, sleepLog := range sleepLogs {
+			if sleepLog.SleepDate == day.Date {
+				days[i].SleepLogs = append(days[i].SleepLogs, sleepLog)
+			}
+		}
+	}
 }
