@@ -318,8 +318,66 @@ func (service *analyticsService) analyzeSleep(userID string, startDate string, e
 		StdDeviation:         standardDeviation,
 		Stability:            stability,
 		SleepQualityTagStats: topSleepQualityTags,
+		SleepDiffs:           models.SleepDiff{},
 	}
 
 	return sleepMetrics
+}
+
+func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *models.SleepMetric) models.SleepDiff {
+
+	var avgSleepPercentChange float64
+	if previousPeriod.AvgSleepHours > 0 {
+		avgSleepPercentChange = utils.PercentChange(currentPeriod.AvgSleepHours, previousPeriod.AvgSleepHours)
+	}
+
+	var trendShift string
+	if previousPeriod.SleepTrend != "" {
+		trendShift = fmt.Sprintf("%s -> %s", previousPeriod.SleepTrend, currentPeriod.SleepTrend)
+	}
+
+	var movingAvgPercentChange float64
+	if previousPeriod.MovingAvg > 0 {
+		movingAvgPercentChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
+	}
+
+	var stabilityShift string
+	if previousPeriod.Stability != "" {
+		stabilityShift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
+	}
+
+	var stabilityPercentChange float64
+	if previousPeriod.StdDeviation > 0 {
+		stabilityPercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
+
+	}
+
+	const moodTagStatsIndex = 0
+
+	var topSleepQualityTagShift string
+	if utils.BothContainValues(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats) {
+		previousMood := previousPeriod.SleepQualityTagStats[moodTagStatsIndex]
+		currentMood := currentPeriod.SleepQualityTagStats[moodTagStatsIndex]
+		topSleepQualityTagShift = fmt.Sprintf("%s -> %s", previousMood.TagName, currentMood.TagName)
+	}
+
+	var topSleepQualityTagPercentChange string
+	if utils.BothContainValues(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats) {
+		previousMood := utils.FindPreviousMood(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats)
+		currentMood := currentPeriod.SleepQualityTagStats[moodTagStatsIndex]
+		topSleepQualityTagPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, utils.PercentChange(currentMood.Percentage, previousMood.Percentage))
+	}
+
+	sleepDiffs := models.SleepDiff{
+		AvgSleepHoursPercentChange:      avgSleepPercentChange,
+		TrendShift:                      trendShift,
+		MovingAvgPercentChange:          movingAvgPercentChange,
+		StabilityShift:                  stabilityShift,
+		StabilityPercentChange:          stabilityPercentChange,
+		TopSleepQualityTagShift:         topSleepQualityTagShift,
+		TopSleepQualityTagPercentChange: topSleepQualityTagPercentChange,
+	}
+
+	return sleepDiffs
 
 }

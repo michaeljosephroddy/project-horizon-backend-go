@@ -91,13 +91,13 @@ func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate string, e
 
 	current := handler.analyticsService.analyzeSleep(userID, startDate, endDate)
 
-	/* previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
+	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
 
 	previous := handler.analyticsService.analyzeSleep(userID, previousStart, previousEnd)
 
-	diffs := handler.analyticsService.moodDiffs(current, previous)
+	diffs := handler.analyticsService.sleepDiffs(current, previous)
 
-	current.MoodDiffs = diffs */
+	current.SleepDiffs = diffs
 
 	return current
 }

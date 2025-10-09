@@ -11,4 +11,5 @@ type SleepMetric struct {
 	Stability            string    `json:"stability"`
 	AvgSleepHours        float64   `json:"avgSleepHours"`
 	SleepQualityTagStats []TagStat `json:"sleepQualityTagStats"`
+	SleepDiffs           SleepDiff `json:"sleepDiffs"`
 }
