@@ -3,8 +3,9 @@ USE project_horizon;
 
 -- Optional: Clean slate (use only in dev) - drop children first, then parents
 DROP TABLE IF EXISTS mood_log_mood_tag;
-DROP TABLE IF EXISTS user_medication;
+DROP TABLE IF EXISTS medication_log_item;  -- Added this line!
 DROP TABLE IF EXISTS medication_log;
+DROP TABLE IF EXISTS user_medication;
 DROP TABLE IF EXISTS mood_log;
 DROP TABLE IF EXISTS sleep_log;
 DROP TABLE IF EXISTS mood_tag;
@@ -65,19 +66,31 @@ CREATE TABLE IF NOT EXISTS user_medication (
     INDEX idx_start_date (start_date)
 );
 
--- Daily adherence (what was actually taken)
+-- Daily adherence log (header/parent record)
 CREATE TABLE IF NOT EXISTS medication_log (
     medication_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
-    medication_id BIGINT UNSIGNED NOT NULL,
     taken_at TIMESTAMP NOT NULL,
-    taken TINYINT(1) NOT NULL DEFAULT 1,
-    dosage VARCHAR(50) NOT NULL,
     notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_medication_log_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
-    CONSTRAINT fk_medication_log_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE,
     INDEX idx_taken_at (taken_at),
     INDEX idx_user_taken (user_id, taken_at)
+);
+
+-- Join table for medications taken in each log entry
+CREATE TABLE IF NOT EXISTS medication_log_item (
+    medication_log_item_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    medication_log_id BIGINT UNSIGNED NOT NULL,
+    medication_id BIGINT UNSIGNED NOT NULL,
+    dosage VARCHAR(50) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_log_item_log FOREIGN KEY (medication_log_id) REFERENCES medication_log(medication_log_id) ON DELETE CASCADE,
+    CONSTRAINT fk_log_item_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE,
+    INDEX idx_log_id (medication_log_id),
+    INDEX idx_medication_id (medication_id)
 );
 
 -- Mood log entries
@@ -227,24 +240,32 @@ INSERT INTO sleep_log (user_id, hours_slept, sleep_quality_tag_id, sleep_date, n
 (3, 8.0, 1, '2025-08-04', 'Excellent sleep after family day'),
 (3, 5.5, 4, '2025-08-05', 'Stressed about deadlines');
 
--- Sample medication logs
-INSERT INTO medication_log (user_id, medication_id, taken_at, taken, dosage, notes) VALUES
--- Alice taking medications in August
-(1, 1, '2025-08-01 08:00:00', 1, '50mg', 'Morning dose with breakfast'),
-(1, 6, '2025-08-01 20:00:00', 1, '300mg', 'Evening dose'),
-(1, 1, '2025-08-02 08:15:00', 1, '50mg', 'Morning dose'),
-(1, 6, '2025-08-02 20:30:00', 1, '300mg', 'Evening dose'),
-(1, 1, '2025-08-03 09:00:00', 1, '50mg', 'Morning dose'),
--- Bob taking medications
-(2, 2, '2025-08-01 07:30:00', 1, '20mg', 'Morning dose'),
-(2, 7, '2025-08-01 21:00:00', 1, '100mg', 'Evening dose'),
-(2, 2, '2025-08-02 07:45:00', 1, '20mg', 'Morning dose'),
-(2, 7, '2025-08-02 21:15:00', 0, '100mg', 'Forgot evening dose'),
--- Carol taking medications
-(3, 3, '2025-08-01 08:00:00', 1, '10mg', 'Morning dose'),
-(3, 8, '2025-08-01 22:00:00', 1, '200mg', 'Bedtime dose'),
-(3, 3, '2025-08-02 08:00:00', 1, '10mg', 'Morning dose'),
-(3, 8, '2025-08-02 22:00:00', 1, '200mg', 'Bedtime dose');
+-- Daily adherence log (header/parent record)
+CREATE TABLE IF NOT EXISTS medication_log (
+    medication_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED NOT NULL,
+    taken_at TIMESTAMP NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_medication_log_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
+    INDEX idx_taken_at (taken_at),
+    INDEX idx_user_taken (user_id, taken_at)
+);
+
+-- Join table for medications taken in each log entry
+CREATE TABLE IF NOT EXISTS medication_log_item (
+    medication_log_item_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    medication_log_id BIGINT UNSIGNED NOT NULL,
+    medication_id BIGINT UNSIGNED NOT NULL,
+    dosage VARCHAR(50) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_log_item_log FOREIGN KEY (medication_log_id) REFERENCES medication_log(medication_log_id) ON DELETE CASCADE,
+    CONSTRAINT fk_log_item_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE,
+    INDEX idx_log_id (medication_log_id),
+    INDEX idx_medication_id (medication_id)
+);
 
 -- Journal entries for August 2025 (31 days)
 -- Cycling through user_id 1, 2, and 3
