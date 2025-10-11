@@ -24,8 +24,10 @@ func (slr *SleepLogRepository) AvgSleepHours(userID string, startDate string, en
 	if queryErr != nil {
 		panic(queryErr)
 	}
+	defer rows.Close()
 
 	var avgSleepHours sql.NullFloat64
+
 	for rows.Next() {
 		scanErr := rows.Scan(&avgSleepHours)
 		if scanErr != nil {
@@ -47,12 +49,12 @@ func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate string, e
 	if queryErr != nil {
 		panic(queryErr)
 	}
+	defer rows.Close()
 
 	var movingAvg models.MovingAverage
 	var movingAverages []models.MovingAverage
 
 	for rows.Next() {
-
 		var date sql.NullString
 		var movingAvgVal sql.NullFloat64
 
@@ -92,7 +94,7 @@ func (slr *SleepLogRepository) StandardDeviation(userID string, startDate string
 
 	var standardDeviation sql.NullFloat64
 
-	if next := rows.Next(); next {
+	for rows.Next() {
 		scanErr := rows.Scan(&standardDeviation)
 		if scanErr != nil {
 			panic(scanErr)
@@ -112,6 +114,7 @@ func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate stri
 	if queryErr != nil {
 		panic(queryErr)
 	}
+	defer rows.Close()
 
 	var sleepTagStat models.TagStat
 	var sleepTagFrequencies []models.TagStat
@@ -147,6 +150,7 @@ func (slr *SleepLogRepository) SleepLogs(userID string, startDate string, endDat
 	if queryErr != nil {
 		panic(queryErr)
 	}
+	defer rows.Close()
 
 	var sleepLog models.SleepLog
 	var sleepLogs []models.SleepLog
@@ -162,7 +166,6 @@ func (slr *SleepLogRepository) SleepLogs(userID string, startDate string, endDat
 			&sleepLog.CreatedAt,
 			&sleepLog.UpdatedAt,
 		)
-
 		if scanErr != nil {
 			panic(scanErr)
 		}
