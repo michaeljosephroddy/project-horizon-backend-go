@@ -11,8 +11,9 @@ import (
 )
 
 type analyticsService struct {
-	moodLogRepository  *database.MoodLogRepository
-	sleepLogRepository *database.SleepLogRepository
+	moodLogRepository       *database.MoodLogRepository
+	sleepLogRepository      *database.SleepLogRepository
+	medicationLogRepository *database.MedicationLogRepository
 }
 
 func NewAnalyticsService(moodLogRepository *database.MoodLogRepository, sleepLogRepository *database.SleepLogRepository) *analyticsService {
@@ -68,7 +69,12 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 
 	// days
 	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
+	
 	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, positiveDays)
+
+	// TODO get this working
+	// utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, positiveDays)
+
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
 	neutralDays := service.moodLogRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)

@@ -240,33 +240,6 @@ INSERT INTO sleep_log (user_id, hours_slept, sleep_quality_tag_id, sleep_date, n
 (3, 8.0, 1, '2025-08-04', 'Excellent sleep after family day'),
 (3, 5.5, 4, '2025-08-05', 'Stressed about deadlines');
 
--- Daily adherence log (header/parent record)
-CREATE TABLE IF NOT EXISTS medication_log (
-    medication_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
-    taken_at TIMESTAMP NOT NULL,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_medication_log_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
-    INDEX idx_taken_at (taken_at),
-    INDEX idx_user_taken (user_id, taken_at)
-);
-
--- Join table for medications taken in each log entry
-CREATE TABLE IF NOT EXISTS medication_log_item (
-    medication_log_item_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    medication_log_id BIGINT UNSIGNED NOT NULL,
-    medication_id BIGINT UNSIGNED NOT NULL,
-    dosage VARCHAR(50) NOT NULL,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_log_item_log FOREIGN KEY (medication_log_id) REFERENCES medication_log(medication_log_id) ON DELETE CASCADE,
-    CONSTRAINT fk_log_item_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE,
-    INDEX idx_log_id (medication_log_id),
-    INDEX idx_medication_id (medication_id)
-);
-
 -- Journal entries for August 2025 (31 days)
 -- Cycling through user_id 1, 2, and 3
 INSERT INTO mood_log (user_id, mood_rating, note, created_at) VALUES

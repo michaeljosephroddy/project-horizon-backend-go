@@ -194,3 +194,19 @@ func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []
 		}
 	}
 }
+
+func AddMedicationLogsToDays(userID string, mlr *database.MedicationLogRepository, days []models.Day) {
+	for i, day := range days {
+		medicationLogs := mlr.MedicationLogs(userID, day.Date, day.Date)
+		if len(medicationLogs) == 0 {
+			days[i].MedicationLogs = make([]models.MedicationLog, 0)
+			continue
+		}
+		for _, medicationLog := range medicationLogs {
+			if medicationLog.TakenAt == day.Date {
+				days[i].MedicationLogs = append(days[i].MedicationLogs, medicationLog)
+			}
+		}
+	}
+
+}

@@ -16,7 +16,7 @@ func NewMedicationLogRepository(dbConnection *sql.DB) *MedicationLogRepository {
 	}
 }
 
-func (mlr *MedicationLogRepository) medicationLogs(userID string, startDate string, endDate string) []models.MedicationLog {
+func (mlr *MedicationLogRepository) MedicationLogs(userID string, startDate string, endDate string) []models.MedicationLog {
 
 	rows, queryErr := mlr.db.Query(medicationLogQuery, userID, startDate, endDate)
 	if queryErr != nil {
@@ -35,7 +35,6 @@ func (mlr *MedicationLogRepository) medicationLogs(userID string, startDate stri
 			&medicationLog.UserID,
 			&medicationLog.MedicationID,
 			&medicationLog.TakenAt,
-			&medicationLog.Taken,
 			&medicationLog.Dosage,
 			&medicationLog.Notes,
 		)
