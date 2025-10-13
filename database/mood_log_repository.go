@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"fmt"
+	"log"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
@@ -58,11 +59,14 @@ func (mlr *MoodLogRepository) Streaks(userID string, startDate string, endDate s
 }
 
 func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
-
+	// Build the query with the operator
 	query := fmt.Sprintf(daysQuery, operator)
 
-	rows, queryErr := mlr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
+	// Execute with parameters in correct order
+	rows, queryErr := mlr.db.Query(query, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
 	if queryErr != nil {
+		log.Printf("Query error: %v\nQuery: %s\nParams: %v, %v, %v, %v, %v, %v",
+			queryErr, query, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
 		panic(queryErr)
 	}
 	defer rows.Close()
@@ -74,9 +78,9 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 		var createdAt string
 		var moodLogID int
 		var moodRating int
-		var note string
-		var moodTags string
-		var moodTagIDs string
+		var note sql.NullString
+		var moodTags sql.NullString
+		var moodTagIDs sql.NullString
 		var dailyAvgRating float64
 		var dailyTargetCount int
 		var dailyTotalCount int
@@ -99,7 +103,6 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 			panic(scanErr)
 		}
 
-		// Create day if it doesn't exist
 		if _, exists := resultsByDate[dateStr]; !exists {
 			resultsByDate[dateStr] = &models.Day{
 				Date:           dateStr,
@@ -109,39 +112,41 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 		}
 
 		var tags []string
-		mTags := strings.Split(moodTags, ",")
-		for _, t := range mTags {
-			trimmed := strings.TrimSpace(t)
-			tags = append(tags, trimmed)
+		if moodTags.Valid && moodTags.String != "" {
+			mTags := strings.Split(moodTags.String, ", ")
+			for _, t := range mTags {
+				trimmed := strings.TrimSpace(t)
+				if trimmed != "" {
+					tags = append(tags, trimmed)
+				}
+			}
 		}
 
-		// Add journal entry to this day
+		noteValue := ""
+		if note.Valid {
+			noteValue = note.String
+		}
+
 		entry := models.MoodLog{
 			CreatedAt:  createdAt,
 			UserID:     userID,
 			MoodLogID:  moodLogID,
 			MoodRating: moodRating,
-			Note:       note,
+			Note:       noteValue,
 			MoodTags:   tags,
 		}
 
 		resultsByDate[dateStr].MoodLogs = append(resultsByDate[dateStr].MoodLogs, entry)
 	}
 
-	// Convert map to slice
 	days := make([]models.Day, 0, len(resultsByDate))
 	for _, day := range resultsByDate {
 		days = append(days, *day)
 	}
 
-	// Sort days by date
 	sort.Slice(days, func(i, j int) bool {
-		return days[i].Date < days[j].Date
+		return days[i].Date > days[j].Date
 	})
-
-	if days == nil {
-		return make([]models.Day, 0)
-	}
 
 	return days
 }

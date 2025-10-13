@@ -149,6 +149,7 @@ ALTER TABLE mood_log AUTO_INCREMENT = 1;
 ALTER TABLE medication AUTO_INCREMENT = 1;
 ALTER TABLE user_medication AUTO_INCREMENT = 1;
 ALTER TABLE medication_log AUTO_INCREMENT = 1;
+ALTER TABLE medication_log_item AUTO_INCREMENT = 1;
 ALTER TABLE mood_log_mood_tag AUTO_INCREMENT = 1;
 ALTER TABLE sleep_log AUTO_INCREMENT = 1;
 ALTER TABLE sleep_quality_tag AUTO_INCREMENT = 1;
@@ -554,6 +555,428 @@ INSERT INTO mood_log_mood_tag (mood_log_id, mood_tag_id) VALUES
 (91, 1), (91, 4), -- Alice: Happy, Grateful (celebration, reflection)
 (92, 11), (92, 4), -- Bob: Content, Grateful (good month overall)
 (93, 1), (93, 4); -- Carol: Happy, Grateful (perfect ending)
+
+-- Mock data for medication_log (August 2025)
+-- User 1: Takes Sertraline (50mg) and Lithium (300mg)
+-- User 2: Takes Fluoxetine (20mg) and Lamotrigine (100mg)
+-- User 3: Takes Escitalopram (10mg) and Quetiapine (200mg)
+
+-- User 1 Logs
+INSERT INTO medication_log (user_id, taken_at, notes) VALUES
+(1, '2025-08-01 08:30:00', 'Morning dose, feeling good'),
+(1, '2025-08-02 09:15:00', NULL),
+(1, '2025-08-03 08:45:00', 'Slept well last night'),
+(1, '2025-08-04 14:20:00', 'Forgot morning dose, taking now'),
+(1, '2025-08-05 08:00:00', NULL),
+(1, '2025-08-06 09:30:00', 'Feeling more stable'),
+(1, '2025-08-07 08:15:00', NULL),
+(1, '2025-08-08 19:00:00', 'Evening dose, busy day'),
+(1, '2025-08-09 08:45:00', NULL),
+(1, '2025-08-10 09:00:00', 'Weekend, relaxed morning'),
+(1, '2025-08-11 10:30:00', NULL),
+(1, '2025-08-12 08:30:00', 'Back to routine'),
+(1, '2025-08-13 08:15:00', NULL),
+(1, '2025-08-14 14:45:00', 'Afternoon dose'),
+(1, '2025-08-15 08:00:00', 'Feeling energized'),
+(1, '2025-08-16 09:15:00', NULL),
+(1, '2025-08-17 08:30:00', 'Good mood today'),
+(1, '2025-08-18 15:30:00', 'Late dose, hectic schedule'),
+(1, '2025-08-19 08:45:00', NULL),
+(1, '2025-08-20 09:00:00', NULL),
+(1, '2025-08-21 08:15:00', 'Mild headache this morning'),
+(1, '2025-08-22 08:30:00', NULL),
+(1, '2025-08-23 19:30:00', 'Evening dose after work'),
+(1, '2025-08-24 09:30:00', 'Weekend morning'),
+(1, '2025-08-25 10:00:00', NULL),
+(1, '2025-08-26 08:00:00', 'Starting the week strong'),
+(1, '2025-08-27 08:45:00', NULL),
+(1, '2025-08-28 09:15:00', 'Feeling balanced'),
+(1, '2025-08-29 14:00:00', 'Afternoon dose'),
+(1, '2025-08-30 08:30:00', NULL),
+(1, '2025-08-31 09:00:00', 'End of month check-in');
+
+-- User 2 Logs
+INSERT INTO medication_log (user_id, taken_at, notes) VALUES
+(2, '2025-08-01 07:45:00', 'Morning routine'),
+(2, '2025-08-02 08:30:00', NULL),
+(2, '2025-08-03 13:15:00', 'Took with lunch'),
+(2, '2025-08-04 07:30:00', 'Early start today'),
+(2, '2025-08-05 08:00:00', NULL),
+(2, '2025-08-06 08:15:00', 'Feeling calm'),
+(2, '2025-08-07 18:45:00', 'Evening dose, forgot earlier'),
+(2, '2025-08-08 07:45:00', NULL),
+(2, '2025-08-09 08:30:00', 'Good sleep quality'),
+(2, '2025-08-10 09:45:00', 'Lazy Saturday morning'),
+(2, '2025-08-11 10:15:00', NULL),
+(2, '2025-08-12 07:30:00', 'Back to work schedule'),
+(2, '2025-08-13 08:00:00', NULL),
+(2, '2025-08-14 08:15:00', 'Mood is stable'),
+(2, '2025-08-15 14:30:00', 'Midday dose'),
+(2, '2025-08-16 07:45:00', NULL),
+(2, '2025-08-17 08:30:00', 'Feeling productive'),
+(2, '2025-08-18 08:00:00', NULL),
+(2, '2025-08-19 19:15:00', 'Late evening dose'),
+(2, '2025-08-20 08:15:00', NULL),
+(2, '2025-08-21 07:30:00', 'Early morning'),
+(2, '2025-08-22 08:45:00', 'Slight nausea but manageable'),
+(2, '2025-08-23 08:00:00', NULL),
+(2, '2025-08-24 10:30:00', 'Weekend brunch time'),
+(2, '2025-08-25 09:00:00', NULL),
+(2, '2025-08-26 07:45:00', 'Monday morning'),
+(2, '2025-08-27 08:30:00', NULL),
+(2, '2025-08-28 08:00:00', 'Anxiety levels low'),
+(2, '2025-08-29 15:00:00', 'Afternoon dose, busy day'),
+(2, '2025-08-30 08:15:00', NULL),
+(2, '2025-08-31 08:30:00', 'Month went well');
+
+-- User 3 Logs
+INSERT INTO medication_log (user_id, taken_at, notes) VALUES
+(3, '2025-08-01 09:00:00', NULL),
+(3, '2025-08-01 21:00:00', 'Evening Quetiapine dose'),
+(3, '2025-08-02 08:45:00', 'Morning meds'),
+(3, '2025-08-03 09:15:00', NULL),
+(3, '2025-08-03 20:30:00', 'Night dose before bed'),
+(3, '2025-08-04 13:00:00', 'Midday dose, slept in'),
+(3, '2025-08-05 08:30:00', NULL),
+(3, '2025-08-05 21:15:00', 'Bedtime dose'),
+(3, '2025-08-06 09:00:00', 'Feeling rested'),
+(3, '2025-08-07 08:45:00', NULL),
+(3, '2025-08-07 20:45:00', 'Evening routine'),
+(3, '2025-08-08 14:30:00', 'Late dose, forgot morning'),
+(3, '2025-08-09 09:15:00', NULL),
+(3, '2025-08-09 21:00:00', 'Night meds'),
+(3, '2025-08-10 10:30:00', 'Weekend morning'),
+(3, '2025-08-11 09:45:00', NULL),
+(3, '2025-08-11 20:30:00', 'Evening dose'),
+(3, '2025-08-12 08:30:00', 'Back to schedule'),
+(3, '2025-08-12 21:15:00', 'Bedtime'),
+(3, '2025-08-13 09:00:00', NULL),
+(3, '2025-08-14 08:45:00', 'Morning routine'),
+(3, '2025-08-14 20:45:00', 'Night dose'),
+(3, '2025-08-15 15:00:00', 'Afternoon, running late'),
+(3, '2025-08-16 09:15:00', NULL),
+(3, '2025-08-16 21:00:00', 'Before bed'),
+(3, '2025-08-17 08:30:00', 'Good morning'),
+(3, '2025-08-18 09:00:00', NULL),
+(3, '2025-08-18 20:30:00', 'Evening meds'),
+(3, '2025-08-19 18:45:00', 'Late afternoon dose'),
+(3, '2025-08-20 08:45:00', NULL),
+(3, '2025-08-20 21:15:00', 'Nighttime'),
+(3, '2025-08-21 09:15:00', 'Feeling stable'),
+(3, '2025-08-22 08:30:00', NULL),
+(3, '2025-08-22 20:45:00', 'Evening dose'),
+(3, '2025-08-23 16:30:00', 'Late dose today'),
+(3, '2025-08-24 10:00:00', 'Weekend sleep-in'),
+(3, '2025-08-24 21:00:00', 'Night meds'),
+(3, '2025-08-25 09:30:00', NULL),
+(3, '2025-08-26 08:45:00', 'Monday start'),
+(3, '2025-08-26 20:30:00', 'Evening routine'),
+(3, '2025-08-27 09:00:00', NULL),
+(3, '2025-08-27 21:15:00', 'Bedtime dose'),
+(3, '2025-08-28 08:30:00', 'Mood is good'),
+(3, '2025-08-29 14:00:00', 'Afternoon dose'),
+(3, '2025-08-29 20:45:00', 'Night dose'),
+(3, '2025-08-30 09:15:00', NULL),
+(3, '2025-08-31 08:45:00', 'End of month'),
+(3, '2025-08-31 21:00:00', 'Final evening dose of August');
+
+-- medication_log_item entries
+-- User 1 takes Sertraline (medication_id=1, 50mg) and Lithium (medication_id=6, 300mg)
+-- Logs 1-31 are User 1
+INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, notes) VALUES
+-- Day 1
+(1, 1, '50mg', NULL),
+(1, 6, '300mg', NULL),
+-- Day 2
+(2, 1, '50mg', NULL),
+(2, 6, '300mg', NULL),
+-- Day 3
+(3, 1, '50mg', NULL),
+(3, 6, '300mg', NULL),
+-- Day 4
+(4, 1, '50mg', NULL),
+(4, 6, '300mg', NULL),
+-- Day 5
+(5, 1, '50mg', NULL),
+(5, 6, '300mg', NULL),
+-- Day 6
+(6, 1, '50mg', NULL),
+(6, 6, '300mg', NULL),
+-- Day 7
+(7, 1, '50mg', NULL),
+(7, 6, '300mg', NULL),
+-- Day 8
+(8, 1, '50mg', NULL),
+(8, 6, '300mg', NULL),
+-- Day 9
+(9, 1, '50mg', NULL),
+(9, 6, '300mg', NULL),
+-- Day 10
+(10, 1, '50mg', NULL),
+(10, 6, '300mg', NULL),
+-- Day 11
+(11, 1, '50mg', NULL),
+(11, 6, '300mg', NULL),
+-- Day 12
+(12, 1, '50mg', NULL),
+(12, 6, '300mg', NULL),
+-- Day 13
+(13, 1, '50mg', NULL),
+(13, 6, '300mg', NULL),
+-- Day 14
+(14, 1, '50mg', NULL),
+(14, 6, '300mg', NULL),
+-- Day 15
+(15, 1, '50mg', NULL),
+(15, 6, '300mg', NULL),
+-- Day 16
+(16, 1, '50mg', NULL),
+(16, 6, '300mg', NULL),
+-- Day 17
+(17, 1, '50mg', NULL),
+(17, 6, '300mg', NULL),
+-- Day 18
+(18, 1, '50mg', NULL),
+(18, 6, '300mg', NULL),
+-- Day 19
+(19, 1, '50mg', NULL),
+(19, 6, '300mg', NULL),
+-- Day 20
+(20, 1, '50mg', NULL),
+(20, 6, '300mg', NULL),
+-- Day 21
+(21, 1, '50mg', NULL),
+(21, 6, '300mg', NULL),
+-- Day 22
+(22, 1, '50mg', NULL),
+(22, 6, '300mg', NULL),
+-- Day 23
+(23, 1, '50mg', NULL),
+(23, 6, '300mg', NULL),
+-- Day 24
+(24, 1, '50mg', NULL),
+(24, 6, '300mg', NULL),
+-- Day 25
+(25, 1, '50mg', NULL),
+(25, 6, '300mg', NULL),
+-- Day 26
+(26, 1, '50mg', NULL),
+(26, 6, '300mg', NULL),
+-- Day 27
+(27, 1, '50mg', NULL),
+(27, 6, '300mg', NULL),
+-- Day 28
+(28, 1, '50mg', NULL),
+(28, 6, '300mg', NULL),
+-- Day 29
+(29, 1, '50mg', NULL),
+(29, 6, '300mg', NULL),
+-- Day 30
+(30, 1, '50mg', NULL),
+(30, 6, '300mg', NULL),
+-- Day 31
+(31, 1, '50mg', NULL),
+(31, 6, '300mg', NULL);
+
+-- User 2 takes Fluoxetine (medication_id=2, 20mg) and Lamotrigine (medication_id=7, 100mg)
+-- Logs 32-62 are User 2
+INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, notes) VALUES
+-- Day 1
+(32, 2, '20mg', NULL),
+(32, 7, '100mg', NULL),
+-- Day 2
+(33, 2, '20mg', NULL),
+(33, 7, '100mg', NULL),
+-- Day 3
+(34, 2, '20mg', NULL),
+(34, 7, '100mg', NULL),
+-- Day 4
+(35, 2, '20mg', NULL),
+(35, 7, '100mg', NULL),
+-- Day 5
+(36, 2, '20mg', NULL),
+(36, 7, '100mg', NULL),
+-- Day 6
+(37, 2, '20mg', NULL),
+(37, 7, '100mg', NULL),
+-- Day 7
+(38, 2, '20mg', NULL),
+(38, 7, '100mg', NULL),
+-- Day 8
+(39, 2, '20mg', NULL),
+(39, 7, '100mg', NULL),
+-- Day 9
+(40, 2, '20mg', NULL),
+(40, 7, '100mg', NULL),
+-- Day 10
+(41, 2, '20mg', NULL),
+(41, 7, '100mg', NULL),
+-- Day 11
+(42, 2, '20mg', NULL),
+(42, 7, '100mg', NULL),
+-- Day 12
+(43, 2, '20mg', NULL),
+(43, 7, '100mg', NULL),
+-- Day 13
+(44, 2, '20mg', NULL),
+(44, 7, '100mg', NULL),
+-- Day 14
+(45, 2, '20mg', NULL),
+(45, 7, '100mg', NULL),
+-- Day 15
+(46, 2, '20mg', NULL),
+(46, 7, '100mg', NULL),
+-- Day 16
+(47, 2, '20mg', NULL),
+(47, 7, '100mg', NULL),
+-- Day 17
+(48, 2, '20mg', NULL),
+(48, 7, '100mg', NULL),
+-- Day 18
+(49, 2, '20mg', NULL),
+(49, 7, '100mg', NULL),
+-- Day 19
+(50, 2, '20mg', NULL),
+(50, 7, '100mg', NULL),
+-- Day 20
+(51, 2, '20mg', NULL),
+(51, 7, '100mg', NULL),
+-- Day 21
+(52, 2, '20mg', NULL),
+(52, 7, '100mg', NULL),
+-- Day 22
+(53, 2, '20mg', NULL),
+(53, 7, '100mg', NULL),
+-- Day 23
+(54, 2, '20mg', NULL),
+(54, 7, '100mg', NULL),
+-- Day 24
+(55, 2, '20mg', NULL),
+(55, 7, '100mg', NULL),
+-- Day 25
+(56, 2, '20mg', NULL),
+(56, 7, '100mg', NULL),
+-- Day 26
+(57, 2, '20mg', NULL),
+(57, 7, '100mg', NULL),
+-- Day 27
+(58, 2, '20mg', NULL),
+(58, 7, '100mg', NULL),
+-- Day 28
+(59, 2, '20mg', NULL),
+(59, 7, '100mg', NULL),
+-- Day 29
+(60, 2, '20mg', NULL),
+(60, 7, '100mg', NULL),
+-- Day 30
+(61, 2, '20mg', NULL),
+(61, 7, '100mg', NULL),
+-- Day 31
+(62, 2, '20mg', NULL),
+(62, 7, '100mg', NULL);
+
+-- User 3 takes Escitalopram (medication_id=3, 10mg) and Quetiapine (medication_id=8, 200mg)
+-- User 3 has some logs with both meds, and separate evening Quetiapine doses
+-- Logs 63-110 are User 3
+INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, notes) VALUES
+-- Day 1 morning
+(63, 3, '10mg', NULL),
+-- Day 1 evening (Quetiapine only)
+(64, 8, '200mg', 'Bedtime dose'),
+-- Day 2 morning
+(65, 3, '10mg', NULL),
+-- Day 3 morning
+(66, 3, '10mg', NULL),
+-- Day 3 evening
+(67, 8, '200mg', 'Bedtime dose'),
+-- Day 4 midday
+(68, 3, '10mg', NULL),
+-- Day 5 morning
+(69, 3, '10mg', NULL),
+-- Day 5 evening
+(70, 8, '200mg', 'Bedtime dose'),
+-- Day 6 morning
+(71, 3, '10mg', NULL),
+-- Day 7 morning
+(72, 3, '10mg', NULL),
+-- Day 7 evening
+(73, 8, '200mg', 'Bedtime dose'),
+-- Day 8 afternoon
+(74, 3, '10mg', NULL),
+(74, 8, '200mg', 'Taking both now'),
+-- Day 9 morning
+(75, 3, '10mg', NULL),
+-- Day 9 evening
+(76, 8, '200mg', 'Bedtime dose'),
+-- Day 10 morning
+(77, 3, '10mg', NULL),
+-- Day 11 morning
+(78, 3, '10mg', NULL),
+-- Day 11 evening
+(79, 8, '200mg', 'Bedtime dose'),
+-- Day 12 morning
+(80, 3, '10mg', NULL),
+-- Day 12 evening
+(81, 8, '200mg', 'Bedtime dose'),
+-- Day 13 morning
+(82, 3, '10mg', NULL),
+-- Day 14 morning
+(83, 3, '10mg', NULL),
+-- Day 14 evening
+(84, 8, '200mg', 'Bedtime dose'),
+-- Day 15 afternoon
+(85, 3, '10mg', NULL),
+-- Day 16 morning
+(86, 3, '10mg', NULL),
+-- Day 16 evening
+(87, 8, '200mg', 'Bedtime dose'),
+-- Day 17 morning
+(88, 3, '10mg', NULL),
+-- Day 18 morning
+(89, 3, '10mg', NULL),
+-- Day 18 evening
+(90, 8, '200mg', 'Bedtime dose'),
+-- Day 19 late afternoon
+(91, 3, '10mg', NULL),
+(91, 8, '200mg', 'Taking both'),
+-- Day 20 morning
+(92, 3, '10mg', NULL),
+-- Day 20 evening
+(93, 8, '200mg', 'Bedtime dose'),
+-- Day 21 morning
+(94, 3, '10mg', NULL),
+-- Day 22 morning
+(95, 3, '10mg', NULL),
+-- Day 22 evening
+(96, 8, '200mg', 'Bedtime dose'),
+-- Day 23 late afternoon
+(97, 3, '10mg', NULL),
+-- Day 24 morning
+(98, 3, '10mg', NULL),
+-- Day 24 evening
+(99, 8, '200mg', 'Bedtime dose'),
+-- Day 25 morning
+(100, 3, '10mg', NULL),
+-- Day 26 morning
+(101, 3, '10mg', NULL),
+-- Day 26 evening
+(102, 8, '200mg', 'Bedtime dose'),
+-- Day 27 morning
+(103, 3, '10mg', NULL),
+-- Day 27 evening
+(104, 8, '200mg', 'Bedtime dose'),
+-- Day 28 morning
+(105, 3, '10mg', NULL),
+-- Day 29 afternoon
+(106, 3, '10mg', NULL),
+-- Day 29 evening
+(107, 8, '200mg', 'Bedtime dose'),
+-- Day 30 morning
+(108, 3, '10mg', NULL),
+-- Day 31 morning
+(109, 3, '10mg', NULL),
+-- Day 31 evening
+(110, 8, '200mg', 'Final bedtime dose of month');
 
 -- ========================================
 -- USEFUL QUERIES

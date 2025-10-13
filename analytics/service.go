@@ -16,10 +16,11 @@ type analyticsService struct {
 	medicationLogRepository *database.MedicationLogRepository
 }
 
-func NewAnalyticsService(moodLogRepository *database.MoodLogRepository, sleepLogRepository *database.SleepLogRepository) *analyticsService {
+func NewAnalyticsService(moodLogRepository *database.MoodLogRepository, sleepLogRepository *database.SleepLogRepository, medicationLogRepository *database.MedicationLogRepository) *analyticsService {
 	return &analyticsService{
-		moodLogRepository:  moodLogRepository,
-		sleepLogRepository: sleepLogRepository,
+		moodLogRepository:       moodLogRepository,
+		sleepLogRepository:      sleepLogRepository,
+		medicationLogRepository: medicationLogRepository,
 	}
 }
 
@@ -69,7 +70,8 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 
 	// days
 	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
-	
+
+	fmt.Println("in service ", positiveDays)
 	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, positiveDays)
 
 	// TODO get this working

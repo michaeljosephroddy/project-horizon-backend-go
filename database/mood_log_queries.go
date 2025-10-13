@@ -1,78 +1,90 @@
 package database
 
-
-var streaksQuery = `WITH qualifying_days AS
+var streaksQuery = `WITH daily_aggregates AS
 (
-         SELECT   date,
-                  created_at,
-                  mood_log_id,
-                  mood_rating,
-                  note,
-                  mood_tags,
-                  mood_tag_ids,
-                  daily_avg_rating,
-                  daily_target_count,
-                  daily_total_count,
-                  daily_target_percentage
-         FROM     (
-                           SELECT   Date(ml.created_at) AS date,
-                                    ml.created_at,
-                                    ml.mood_log_id,
-                                    ml.mood_rating,
-                                    ml.note,
-                                    group_concat(mt.NAME order BY mt.NAME separator ',')              AS mood_tags,
-                                    group_concat(mt.mood_tag_id ORDER BY mt.mood_tag_id separator ',') AS mood_tag_ids,
-                                    avg(ml.mood_rating) OVER (partition BY date(ml.created_at))        AS daily_avg_rating,
-                                    sum(
-                                    CASE
-                                             WHEN mt.mood_category_id = ? THEN 1
-                                             ELSE 0
-                                    END) OVER (partition BY                  date(ml.created_at)) AS daily_target_count,
-                                    count(mt.mood_tag_id) OVER (partition BY date(ml.created_at)) AS daily_total_count,
-                                    (sum(
-                                    CASE
-                                             WHEN mt.mood_category_id = ? THEN 1
-                                             ELSE 0
-                                    END) OVER (partition BY date(ml.created_at)) * 100.0 / count(mt.mood_tag_id) OVER (partition BY date(ml.created_at))) AS daily_target_percentage
-                           FROM     mood_log ml 
-                           JOIN     mood_log_mood_tag mlmt
-                           ON       ml.mood_log_id = mlmt.mood_log_id
-                           JOIN     mood_tag mt
-                           ON       mlmt.mood_tag_id = mt.mood_tag_id
-                           WHERE    ml.user_id = ?
-                           AND      date(ml.created_at) BETWEEN ? AND      ?
-                           GROUP BY date(ml.created_at),
-                                    ml.mood_log_id,
-                                    ml.created_at,
-                                    ml.mood_rating,
-                                    ml.note) AS daily_data
-         WHERE    daily_avg_rating %s ?
-         AND      daily_target_percentage >= ?
-         ORDER BY date,
-                  created_at), second_query AS
+         SELECT   Date(ml.created_at) AS date,
+                  Avg(ml.mood_rating) AS daily_avg_rating,
+                  Sum(
+                  CASE
+                           WHEN mt.mood_category_id = ? THEN 1
+                           ELSE 0
+                  END)                  AS daily_target_count,
+                  Count(mt.mood_tag_id) AS daily_total_count,
+                  (Sum(
+                  CASE
+                           WHEN mt.mood_category_id = ? THEN 1
+                           ELSE 0
+                  END) * 100.0 / Count(mt.mood_tag_id)) AS daily_target_percentage
+         FROM     mood_log ml
+         JOIN     mood_log_mood_tag mlmt
+         ON       ml.mood_log_id = mlmt.mood_log_id
+         JOIN     mood_tag mt
+         ON       mlmt.mood_tag_id = mt.mood_tag_id
+         WHERE    ml.user_id = ?
+         AND      Date(ml.created_at) BETWEEN ? AND      ?
+         GROUP BY Date(ml.created_at)
+         HAVING   daily_avg_rating %s ?
+         AND      daily_target_percentage >= ? ), streak_groups AS
 (
          SELECT   date,
                   daily_avg_rating,
-                  row_number() OVER( ORDER BY date) AS rn
-         FROM     qualifying_days), third_query AS
+                  row_number() OVER (ORDER BY date)                                                 AS rn,
+                  date_sub(                   date, interval row_number() OVER (ORDER BY date) day) AS grp
+         FROM     daily_aggregates ), streaks AS
 (
-         SELECT   date                              AS start_date,
-                  count(*)                          AS streak_length,
-                  date_add(date, interval - rn day) AS consec_groups
-         FROM     second_query
-         GROUP BY consec_groups), fourth_query AS
-(
-       SELECT *,
-              date_add(start_date, interval + streak_length - 1 day) AS end_date
-       FROM   third_query)
+         SELECT   min(date) AS start_date,
+                  max(date) AS end_date,
+                  count(*)  AS streak_length
+         FROM     streak_groups
+         GROUP BY grp
+         HAVING   streak_length >= 2 )
 SELECT   start_date,
          end_date,
          streak_length
-FROM     fourth_query
-WHERE    streak_length >= 2
+FROM     streaks
 ORDER BY start_date;`
 
-var daysQuery = `SELECT   date,
+var daysQuery = `WITH mood_data AS
+(
+         SELECT   Date(ml.created_at) AS date,
+                  ml.created_at,
+                  ml.mood_log_id,
+                  ml.mood_rating,
+                  ml.note,
+                  group_concat(mt.NAME order BY mt.NAME separator ', ')              AS mood_tags,
+                  group_concat(mt.mood_tag_id ORDER BY mt.mood_tag_id separator ',') AS mood_tag_ids,
+                  sum(
+                  CASE
+                           WHEN mt.mood_category_id = ? THEN 1
+                           ELSE 0
+                  END)                  AS entry_target_count,
+                  count(mt.mood_tag_id) AS entry_total_count
+         FROM     mood_log ml
+         JOIN     mood_log_mood_tag mlmt
+         ON       ml.mood_log_id = mlmt.mood_log_id
+         JOIN     mood_tag mt
+         ON       mlmt.mood_tag_id = mt.mood_tag_id
+         WHERE    ml.user_id = ?
+         AND      date(ml.created_at) BETWEEN ? AND      ?
+         GROUP BY date(ml.created_at),
+                  ml.mood_log_id,
+                  ml.created_at,
+                  ml.mood_rating,
+                  ml.note ), daily_stats AS
+(
+       SELECT date,
+              created_at,
+              mood_log_id,
+              mood_rating,
+              note,
+              mood_tags,
+              mood_tag_ids,
+              avg(mood_rating) OVER (partition BY        date)                                                                        AS daily_avg_rating,
+              sum(entry_target_count) OVER (partition BY date)                                                                        AS daily_target_count,
+              sum(entry_total_count) OVER (partition BY  date)                                                                        AS daily_total_count,
+              (sum(entry_target_count) OVER (partition BY date) * 100.0 / NULLIF(sum(entry_total_count) OVER (partition BY date), 0)) AS daily_target_percentage
+       FROM   mood_data )
+SELECT   date,
          created_at,
          mood_log_id,
          mood_rating,
@@ -82,43 +94,12 @@ var daysQuery = `SELECT   date,
          daily_avg_rating,
          daily_target_count,
          daily_total_count,
-         daily_target_percentage
-FROM     (
-                  SELECT   Date(ml.created_at) AS date,
-                           ml.created_at,
-                           ml.mood_log_id,
-                           ml.mood_rating,
-                           ml.note,
-                           group_concat(mt.NAME order BY mt.NAME separator ', ')              AS mood_tags,
-                           group_concat(mt.mood_tag_id ORDER BY mt.mood_tag_id separator ',') AS mood_tag_ids,
-                           avg(ml.mood_rating) OVER (partition BY date(ml.created_at))        AS daily_avg_rating,
-                           sum(
-                           CASE
-                                    WHEN mt.mood_category_id = ? THEN 1
-                                    ELSE 0
-                           END) OVER (partition BY                  date(ml.created_at)) AS daily_target_count,
-                           count(mt.mood_tag_id) OVER (partition BY date(ml.created_at)) AS daily_total_count,
-                           (sum(
-                           CASE
-                                    WHEN mt.mood_category_id = ? THEN 1
-                                    ELSE 0
-                           END) OVER (partition BY date(ml.created_at)) * 100.0 / count(mt.mood_tag_id) OVER (partition BY date(ml.created_at))) AS daily_target_percentage
-                  FROM     mood_log ml
-                  JOIN     mood_log_mood_tag mlmt
-                  ON       ml.mood_log_id = mlmt.mood_log_id
-                  JOIN     mood_tag mt
-                  ON       mlmt.mood_tag_id = mt.mood_tag_id
-                  WHERE    ml.user_id = ?
-                  AND      date(ml.created_at) BETWEEN ? AND      ?
-                  GROUP BY date(ml.created_at),
-                           ml.mood_log_id,
-                           ml.created_at,
-                           ml.mood_rating,
-                           ml.note ) AS daily_data
+         COALESCE(daily_target_percentage, 0) AS daily_target_percentage
+FROM     daily_stats
 WHERE    daily_avg_rating %s ?
-AND      daily_target_percentage >= ?
-ORDER BY date,
-         created_at;`
+AND      COALESCE(daily_target_percentage, 0) >= ?
+ORDER BY date DESC,
+         created_at DESC;`
 
 var stdDevQuery = `SELECT Stddev_pop(mood_rating) AS std_dev
 FROM   mood_log

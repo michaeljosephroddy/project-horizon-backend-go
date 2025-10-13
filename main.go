@@ -15,8 +15,11 @@ func main() {
 
 	moodLogRepository := database.NewMoodLogRepository(dbConnection)
 	sleepLogRepository := database.NewSleepLogRepository(dbConnection)
-	analyticsService := analytics.NewAnalyticsService(moodLogRepository, sleepLogRepository)
+	medicationLogRepository := database.NewMedicationLogRepository(dbConnection)
+
+	analyticsService := analytics.NewAnalyticsService(moodLogRepository, sleepLogRepository, medicationLogRepository)
 	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
+
 	r := router.NewRouter(analyticsHandler)
 
 	http.HandleFunc("/", r.RouteRequests)

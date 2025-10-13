@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -198,6 +199,7 @@ func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []
 func AddMedicationLogsToDays(userID string, mlr *database.MedicationLogRepository, days []models.Day) {
 	for i, day := range days {
 		medicationLogs := mlr.MedicationLogs(userID, day.Date, day.Date)
+		fmt.Println("DEBUG ", medicationLogs)
 		if len(medicationLogs) == 0 {
 			days[i].MedicationLogs = make([]models.MedicationLog, 0)
 			continue
@@ -208,5 +210,4 @@ func AddMedicationLogsToDays(userID string, mlr *database.MedicationLogRepositor
 			}
 		}
 	}
-
 }
