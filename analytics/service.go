@@ -68,48 +68,53 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 		tagPercentage            = "50"
 	)
 
-	// days
+	// Positive Days
 	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
-
-	fmt.Println("in service ", positiveDays)
 	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, positiveDays)
-
-	// TODO get this working
-	// utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, positiveDays)
-
+	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, positiveDays)
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
+	// Neutral Days
 	neutralDays := service.moodLogRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
 	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, neutralDays)
+	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, neutralDays)
 	mtfNeutralDays := utils.MoodTagFrequencies(neutralDays)
 
+	// Negative Days
 	negativeDays := service.moodLogRepository.Days(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
 	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, negativeDays)
+	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, negativeDays)
 	mtfNegativeDays := utils.MoodTagFrequencies(negativeDays)
 
+	// Clinical Days
 	clinicalDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
 	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, clinicalDays)
+	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, clinicalDays)
 	mtfClinicalDays := utils.MoodTagFrequencies(clinicalDays)
 
 	// streaks
 	positiveStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
 	for _, streak := range positiveStreaks {
 		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
+		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
 	}
 
 	neutralStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
 	for _, streak := range neutralStreaks {
 		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
+		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
 	}
 
 	negativeStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
 	for _, streak := range negativeStreaks {
 		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
+		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
 	}
 
 	clinicalStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
 	for _, streak := range clinicalStreaks {
 		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
+		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
 	}
 
 	granularity := utils.Granularity(numDays)

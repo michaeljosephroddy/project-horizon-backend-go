@@ -184,15 +184,14 @@ func StdDeviation(standardDeviation float64, noData float64, minModerateVal floa
 func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []models.Day) {
 	for i, day := range days {
 		sleepLogs := slr.SleepLogs(userID, day.Date, day.Date)
+
 		if len(sleepLogs) == 0 {
 			days[i].SleepLogs = make([]models.SleepLog, 0)
 			continue
 		}
-		for _, sleepLog := range sleepLogs {
-			if sleepLog.SleepDate == day.Date {
-				days[i].SleepLogs = append(days[i].SleepLogs, sleepLog)
-			}
-		}
+
+		// Just assign all the logs directly since the query already filtered by date
+		days[i].SleepLogs = sleepLogs
 	}
 }
 
@@ -200,14 +199,13 @@ func AddMedicationLogsToDays(userID string, mlr *database.MedicationLogRepositor
 	for i, day := range days {
 		medicationLogs := mlr.MedicationLogs(userID, day.Date, day.Date)
 		fmt.Println("DEBUG ", medicationLogs)
+
 		if len(medicationLogs) == 0 {
 			days[i].MedicationLogs = make([]models.MedicationLog, 0)
 			continue
 		}
-		for _, medicationLog := range medicationLogs {
-			if medicationLog.TakenAt == day.Date {
-				days[i].MedicationLogs = append(days[i].MedicationLogs, medicationLog)
-			}
-		}
+
+		// Just assign all the logs directly since the query already filtered by date
+		days[i].MedicationLogs = medicationLogs
 	}
 }

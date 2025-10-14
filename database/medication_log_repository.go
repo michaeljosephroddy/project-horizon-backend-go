@@ -21,19 +21,21 @@ func (mlr *MedicationLogRepository) MedicationLogs(userID string, startDate stri
 	if queryErr != nil {
 		panic(queryErr)
 	}
+
 	defer rows.Close()
 
 	var medicationLogs []models.MedicationLog
 
 	for rows.Next() {
 		var medicationLog models.MedicationLog
-		var medicationsJSON string // holds the JSON array from SQL
+		var medicationsJSON string
+		var notes sql.NullString // Handle NULL values
 
 		scanErr := rows.Scan(
 			&medicationLog.MedicationLogID,
 			&medicationLog.UserID,
 			&medicationLog.TakenAt,
-			&medicationLog.Notes,
+			&notes, // Scan into sql.NullString
 			&medicationLog.CreatedAt,
 			&medicationLog.UpdatedAt,
 			&medicationsJSON,
@@ -42,13 +44,20 @@ func (mlr *MedicationLogRepository) MedicationLogs(userID string, startDate stri
 			panic(scanErr)
 		}
 
+		// Convert sql.NullString to regular string
+		if notes.Valid {
+			medicationLog.Notes = notes.String
+		} else {
+			medicationLog.Notes = "" // or you could use a pointer type in the model
+		}
+
 		// Parse JSON into Go struct
 		var meds []models.Medication
 		if err := json.Unmarshal([]byte(medicationsJSON), &meds); err != nil {
 			panic(err)
 		}
-		medicationLog.Medications = meds
 
+		medicationLog.Medications = meds
 		medicationLogs = append(medicationLogs, medicationLog)
 	}
 

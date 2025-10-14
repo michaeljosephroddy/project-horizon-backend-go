@@ -17,7 +17,7 @@ FROM   medication_log ml
        JOIN medication m
          ON m.medication_id = mli.medication_id
 WHERE  ml.user_id = ?
-       AND Date(ml.created_at) BETWEEN ? AND ?
+       AND Date(ml.taken_at) BETWEEN ? AND ?
 GROUP  BY ml.medication_log_id,
           ml.user_id,
           ml.taken_at,
