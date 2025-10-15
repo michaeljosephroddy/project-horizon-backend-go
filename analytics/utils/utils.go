@@ -7,8 +7,8 @@ import (
 
 	"time"
 
+	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
 func MoodTagFrequencies(days []models.Day) []models.TagStat {
@@ -69,14 +69,12 @@ func FindPreviousMood(currentMoods, previousMoods []models.TagStat) models.TagSt
 	return previousMood
 }
 
-func PreviousDates(startDate string, endDate string) (string, string) {
+func PreviousDates(startDate time.Time, endDate time.Time) (time.Time, time.Time) {
 	const layout = "2006-01-02"
-	startDateParsed, _ := time.Parse(layout, startDate)
-	endDateParsed, _ := time.Parse(layout, endDate)
-	diff := endDateParsed.Sub(startDateParsed)
+	diff := endDate.Sub(startDate)
 	numDays := int(diff.Hours() / 24)
-	previousStartDate := startDateParsed.AddDate(0, 0, -numDays).Format(layout)
-	previousEndDate := startDateParsed.AddDate(0, 0, -1).Format(layout)
+	previousStartDate, _ := time.Parse(layout, startDate.AddDate(0, 0, -numDays).Format(layout))
+	previousEndDate, _ := time.Parse(layout, startDate.AddDate(0, 0, -1).Format(layout))
 	return previousStartDate, previousEndDate
 }
 
@@ -138,11 +136,8 @@ func Granularity(numDays int) string {
 	return granularity
 }
 
-func NumDaysBetween(startDate string, endDate string) int {
-	const layout = "2006-01-02" // Correct Go layout
-	startDateParsed, _ := time.Parse(layout, startDate)
-	endDateParsed, _ := time.Parse(layout, endDate)
-	diff := endDateParsed.Sub(startDateParsed)
+func NumDaysBetween(startDate time.Time, endDate time.Time) int {
+	diff := endDate.Sub(startDate)
 	return int(diff.Hours() / 24)
 }
 

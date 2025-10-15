@@ -1,10 +1,12 @@
 package models
 
+import "time"
+
 type SleepMetric struct {
 	UserID               string    `json:"userId"`
 	Granularity          string    `json:"granularity"`
-	StartDate            string    `json:"startDate"`
-	EndDate              string    `json:"endDate"`
+	StartDate            time.Time `json:"startDate"`
+	EndDate              time.Time `json:"endDate"`
 	MovingAvg            float64   `json:"movingAvg"`
 	SleepTrend           string    `json:"sleepTrend"`
 	StdDeviation         float64   `json:"stdDeviation"`

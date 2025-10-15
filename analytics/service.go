@@ -3,11 +3,12 @@ package analytics
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/utils"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
 )
 
 type analyticsService struct {
@@ -24,7 +25,7 @@ func NewAnalyticsService(moodLogRepository *database.MoodLogRepository, sleepLog
 	}
 }
 
-func (service *analyticsService) analyzeMood(userID string, startDate string, endDate string) *models.MoodMetric {
+func (service *analyticsService) analyzeMood(userID string, startDate time.Time, endDate time.Time) *models.MoodMetric {
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
@@ -92,25 +93,28 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, clinicalDays)
 	mtfClinicalDays := utils.MoodTagFrequencies(clinicalDays)
 
-	// streaks
+	// Positive Streaks
 	positiveStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
 	for _, streak := range positiveStreaks {
 		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
 		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
 	}
 
+	// Neutral Streaks
 	neutralStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
 	for _, streak := range neutralStreaks {
 		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
 		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
 	}
 
+	// Negative Streaks
 	negativeStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
 	for _, streak := range negativeStreaks {
 		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
 		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
 	}
 
+	// Clinical Streaks
 	clinicalStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
 	for _, streak := range clinicalStreaks {
 		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
@@ -120,29 +124,39 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 	granularity := utils.Granularity(numDays)
 
 	moodMetrics := &models.MoodMetric{
-		UserID:                   userID,
-		Granularity:              granularity,
-		StartDate:                startDate,
-		EndDate:                  endDate,
-		MovingAvg:                movingAvg,
-		MoodTrend:                moodTrend,
-		StdDeviation:             standardDeviation,
-		Stability:                stability,
-		AvgMoodRating:            avgMoodRating,
-		MoodTagStats:             mtfPeriod,
-		MoodTagStatsPositiveDays: mtfPositiveDays,
-		MoodTagStatsNeutralDays:  mtfNeutralDays,
-		MoodTagStatsNegativeDays: mtfNegativeDays,
-		MoodTagStatsClinicalDays: mtfClinicalDays,
-		PositiveStreaks:          positiveStreaks,
-		NeutralStreaks:           neutralStreaks,
-		NegativeStreaks:          negativeStreaks,
-		ClinicalStreaks:          clinicalStreaks,
-		PositiveDays:             positiveDays,
-		NeutralDays:              neutralDays,
-		NegativeDays:             negativeDays,
-		ClinicalDays:             clinicalDays,
-		MoodDiffs:                models.MoodDiff{},
+		UserID:       userID,
+		Granularity:  granularity,
+		StartDate:    startDate,
+		EndDate:      endDate,
+		MovingAvg:    movingAvg,
+		Trend:        moodTrend,
+		StdDeviation: standardDeviation,
+		Stability:    stability,
+		AvgRating:    avgMoodRating,
+		TagStats:     mtfPeriod,
+		Categories: models.MoodCategories{
+			Positive: models.CategoryData{
+				TagStats: mtfPositiveDays,
+				Streaks:  positiveStreaks,
+				Days:     positiveDays,
+			},
+			Neutral: models.CategoryData{
+				TagStats: mtfNeutralDays,
+				Streaks:  neutralStreaks,
+				Days:     neutralDays,
+			},
+			Negative: models.CategoryData{
+				TagStats: mtfNegativeDays,
+				Streaks:  negativeStreaks,
+				Days:     negativeDays,
+			},
+			Clinical: models.CategoryData{
+				TagStats: mtfClinicalDays,
+				Streaks:  clinicalStreaks,
+				Days:     clinicalDays,
+			},
+		},
+		Diffs: models.MoodDiff{},
 	}
 
 	return moodMetrics
@@ -150,19 +164,19 @@ func (service *analyticsService) analyzeMood(userID string, startDate string, en
 
 func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models.MoodMetric) models.MoodDiff {
 
-	var avgMoodPercentChange float64
-	if previousPeriod.AvgMoodRating > 0 {
-		avgMoodPercentChange = utils.PercentChange(currentPeriod.AvgMoodRating, previousPeriod.AvgMoodRating)
+	var avgRatingChange float64
+	if previousPeriod.AvgRating > 0 {
+		avgRatingChange = utils.PercentChange(currentPeriod.AvgRating, previousPeriod.AvgRating)
 	}
 
 	var trendShift string
-	if previousPeriod.MoodTrend != "" {
-		trendShift = fmt.Sprintf("%s -> %s", previousPeriod.MoodTrend, currentPeriod.MoodTrend)
+	if previousPeriod.Trend != "" {
+		trendShift = fmt.Sprintf("%s -> %s", previousPeriod.Trend, currentPeriod.Trend)
 	}
 
-	var movingAvgPercentChange float64
+	var movingAvgChange float64
 	if previousPeriod.MovingAvg > 0 {
-		movingAvgPercentChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
+		movingAvgChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
 	}
 
 	var stabilityShift string
@@ -170,126 +184,68 @@ func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models
 		stabilityShift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
 	}
 
-	var stabilityPercentChange float64
+	var stabilityChange float64
 	if previousPeriod.StdDeviation > 0 {
-		stabilityPercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
-
+		stabilityChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
 	}
 
-	const moodTagStatsIndex = 0
+	const tagStatsIndex = 0
 
-	var topMoodShift string
-	if utils.BothContainValues(currentPeriod.MoodTagStats, previousPeriod.MoodTagStats) {
-		previousMood := previousPeriod.MoodTagStats[moodTagStatsIndex]
-		currentMood := currentPeriod.MoodTagStats[moodTagStatsIndex]
-		topMoodShift = fmt.Sprintf("%s -> %s", previousMood.TagName, currentMood.TagName)
+	var topTagShift string
+	if utils.BothContainValues(currentPeriod.TagStats, previousPeriod.TagStats) {
+		previousTag := previousPeriod.TagStats[tagStatsIndex]
+		currentTag := currentPeriod.TagStats[tagStatsIndex]
+		topTagShift = fmt.Sprintf("%s -> %s", previousTag.TagName, currentTag.TagName)
 	}
 
-	var topMoodPercentChange string
-	if utils.BothContainValues(currentPeriod.MoodTagStats, previousPeriod.MoodTagStats) {
-		previousMood := utils.FindPreviousMood(currentPeriod.MoodTagStats, previousPeriod.MoodTagStats)
-		currentMood := currentPeriod.MoodTagStats[moodTagStatsIndex]
-		topMoodPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, utils.PercentChange(currentMood.Percentage, previousMood.Percentage))
+	var topTagChange float64
+	if utils.BothContainValues(currentPeriod.TagStats, previousPeriod.TagStats) {
+		previousTag := utils.FindPreviousMood(currentPeriod.TagStats, previousPeriod.TagStats)
+		currentTag := currentPeriod.TagStats[tagStatsIndex]
+		topTagChange = utils.PercentChange(currentTag.Percentage, previousTag.Percentage)
 	}
 
-	var topMoodPositiveDaysPercentChange string
-	if utils.BothContainValues(currentPeriod.MoodTagStatsPositiveDays, previousPeriod.MoodTagStatsPositiveDays) {
-		previousMood := utils.FindPreviousMood(currentPeriod.MoodTagStatsPositiveDays, previousPeriod.MoodTagStatsPositiveDays)
-		currentMood := currentPeriod.MoodTagStatsPositiveDays[moodTagStatsIndex]
-		percentChange := utils.PercentChange(currentMood.Percentage, previousMood.Percentage)
-		topMoodPositiveDaysPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, percentChange)
-	}
+	// Helper function to calculate category diffs
+	calculateCategoryDiff := func(current, previous models.CategoryData) models.CategoryDiff {
+		var diff models.CategoryDiff
 
-	var topMoodNeutralDaysPercentChange string
-	if utils.BothContainValues(currentPeriod.MoodTagStatsNeutralDays, previousPeriod.MoodTagStatsNeutralDays) {
-		previousMood := utils.FindPreviousMood(currentPeriod.MoodTagStatsNeutralDays, previousPeriod.MoodTagStatsNeutralDays)
-		currentMood := currentPeriod.MoodTagStatsNeutralDays[moodTagStatsIndex]
-		percentChange := utils.PercentChange(currentMood.Percentage, previousMood.Percentage)
-		topMoodNeutralDaysPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, percentChange)
-	}
+		if utils.BothContainValues(current.TagStats, previous.TagStats) {
+			previousTag := utils.FindPreviousMood(current.TagStats, previous.TagStats)
+			currentTag := current.TagStats[tagStatsIndex]
+			diff.TopTagChange = utils.PercentChange(currentTag.Percentage, previousTag.Percentage)
+		}
 
-	var topMoodNegativeDaysPercentChange string
-	if utils.BothContainValues(currentPeriod.MoodTagStatsNegativeDays, previousPeriod.MoodTagStatsNegativeDays) {
-		previousMood := utils.FindPreviousMood(currentPeriod.MoodTagStatsNegativeDays, previousPeriod.MoodTagStatsNegativeDays)
-		currentMood := currentPeriod.MoodTagStatsNegativeDays[moodTagStatsIndex]
-		percentChange := utils.PercentChange(currentMood.Percentage, previousMood.Percentage)
-		topMoodNegativeDaysPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, percentChange)
-	}
+		if utils.BothContainValues(current.Days, previous.Days) {
+			diff.DaysChange = utils.DifferenceInLength(current.Days, previous.Days)
+		}
 
-	var topMoodClinicalDaysPercentChange string
-	if utils.BothContainValues(currentPeriod.MoodTagStatsClinicalDays, previousPeriod.MoodTagStatsClinicalDays) {
-		previousMood := utils.FindPreviousMood(currentPeriod.MoodTagStatsClinicalDays, previousPeriod.MoodTagStatsClinicalDays)
-		currentMood := currentPeriod.MoodTagStatsClinicalDays[moodTagStatsIndex]
-		percentChange := utils.PercentChange(currentMood.Percentage, previousMood.Percentage)
-		topMoodClinicalDaysPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, percentChange)
-	}
+		if utils.BothContainValues(current.Streaks, previous.Streaks) {
+			diff.StreakChange = utils.DifferenceInLength(current.Streaks, previous.Streaks)
+		}
 
-	var positiveDaysChange int
-	if utils.BothContainValues(currentPeriod.PositiveDays, previousPeriod.PositiveDays) {
-		positiveDaysChange = utils.DifferenceInLength(currentPeriod.PositiveDays, previousPeriod.PositiveDays)
-	}
-
-	var neutralDaysChange int
-	if utils.BothContainValues(currentPeriod.NeutralDays, previousPeriod.NeutralDays) {
-		neutralDaysChange = utils.DifferenceInLength(currentPeriod.NeutralDays, previousPeriod.NeutralDays)
-	}
-
-	var negativeDaysChange int
-	if utils.BothContainValues(currentPeriod.NegativeDays, previousPeriod.NegativeDays) {
-		negativeDaysChange = utils.DifferenceInLength(currentPeriod.NegativeDays, previousPeriod.NegativeDays)
-	}
-
-	var clinicalDaysChange int
-	if utils.BothContainValues(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays) {
-		clinicalDaysChange = utils.DifferenceInLength(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays)
-	}
-
-	var positiveStreakChange int
-	if utils.BothContainValues(currentPeriod.PositiveStreaks, previousPeriod.PositiveStreaks) {
-		positiveStreakChange = utils.DifferenceInLength(currentPeriod.PositiveStreaks, previousPeriod.PositiveStreaks)
-	}
-
-	var neutralStreakChange int
-	if utils.BothContainValues(currentPeriod.NeutralStreaks, previousPeriod.NeutralStreaks) {
-		neutralStreakChange = utils.DifferenceInLength(currentPeriod.NeutralStreaks, previousPeriod.NeutralStreaks)
-	}
-
-	var negativeStreakChange int
-	if utils.BothContainValues(currentPeriod.NegativeStreaks, previousPeriod.NegativeStreaks) {
-		negativeStreakChange = utils.DifferenceInLength(currentPeriod.NegativeStreaks, previousPeriod.NegativeStreaks)
-	}
-
-	var clinicalStreakChange int
-	if utils.BothContainValues(currentPeriod.ClinicalDays, previousPeriod.ClinicalDays) {
-		clinicalStreakChange = utils.DifferenceInLength(currentPeriod.ClinicalStreaks, previousPeriod.ClinicalStreaks)
+		return diff
 	}
 
 	moodDiffs := models.MoodDiff{
-		AvgMoodPercentChange:             avgMoodPercentChange,
-		TrendShift:                       trendShift,
-		MovingAvgPercentChange:           movingAvgPercentChange,
-		StabilityShift:                   stabilityShift,
-		StabilityPercentChange:           stabilityPercentChange,
-		TopMoodShift:                     topMoodShift,
-		TopMoodPercentChange:             topMoodPercentChange,
-		TopMoodPositiveDaysPercentChange: topMoodPositiveDaysPercentChange,
-		TopMoodNeutralDaysPercentChange:  topMoodNeutralDaysPercentChange,
-		TopMoodNegativeDaysPercentChange: topMoodNegativeDaysPercentChange,
-		TopMoodClinicalDaysPercentChange: topMoodClinicalDaysPercentChange,
-		PositiveDaysChange:               positiveDaysChange,
-		NeutralDaysChange:                neutralDaysChange,
-		NegativeDaysChange:               negativeDaysChange,
-		ClinicalDaysChange:               clinicalDaysChange,
-		PositiveStreakChange:             positiveStreakChange,
-		NeutralStreakChange:              neutralStreakChange,
-		NegativeStreakChange:             negativeStreakChange,
-		ClinicalStreakChange:             clinicalStreakChange,
+		AvgRatingChange:    avgRatingChange,
+		TrendShift:         trendShift,
+		MovingAvgChange:    movingAvgChange,
+		StabilityShift:     stabilityShift,
+		StabilityChange:    stabilityChange,
+		TopTagShift:        topTagShift,
+		TopTagChange:       topTagChange,
+		Categories: models.CategoryDiffs{
+			Positive: calculateCategoryDiff(currentPeriod.Categories.Positive, previousPeriod.Categories.Positive),
+			Neutral:  calculateCategoryDiff(currentPeriod.Categories.Neutral, previousPeriod.Categories.Neutral),
+			Negative: calculateCategoryDiff(currentPeriod.Categories.Negative, previousPeriod.Categories.Negative),
+			Clinical: calculateCategoryDiff(currentPeriod.Categories.Clinical, previousPeriod.Categories.Clinical),
+		},
 	}
 
 	return moodDiffs
 }
 
-func (service *analyticsService) analyzeSleep(userID string, startDate string, endDate string) *models.SleepMetric {
+func (service *analyticsService) analyzeSleep(userID string, startDate time.Time, endDate time.Time) *models.SleepMetric {
 
 	avgSleepHours := service.sleepLogRepository.AvgSleepHours(userID, startDate, endDate)
 

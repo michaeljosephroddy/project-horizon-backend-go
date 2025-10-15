@@ -6,7 +6,7 @@ import (
 )
 
 func NewDatabaseConnection() *sql.DB {
-	db, connectErr := sql.Open("mysql", "demouser:demouserpassword@/project_horizon")
+	db, connectErr := sql.Open("mysql", "demouser:demouserpassword@/project_horizon?")
 	if connectErr != nil {
 		panic(connectErr)
 	}

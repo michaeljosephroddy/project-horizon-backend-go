@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
+	"time"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
 )
 
 type SleepLogRepository struct {
@@ -18,7 +19,7 @@ func NewSleepLogRepository(dbConnection *sql.DB) *SleepLogRepository {
 	}
 }
 
-func (slr *SleepLogRepository) AvgSleepHours(userID string, startDate string, endDate string) float64 {
+func (slr *SleepLogRepository) AvgSleepHours(userID string, startDate time.Time, endDate time.Time) float64 {
 
 	rows, queryErr := slr.db.Query(avgSleepHoursQuery, userID, startDate, endDate)
 	if queryErr != nil {
@@ -42,7 +43,7 @@ func (slr *SleepLogRepository) AvgSleepHours(userID string, startDate string, en
 	return avgSleepHours.Float64
 }
 
-func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate string, endDate string, numDaysPreceding string) []models.MovingAverage {
+func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) []models.MovingAverage {
 
 	query := fmt.Sprintf(sleepMovingAvgQuery, numDaysPreceding)
 	rows, queryErr := slr.db.Query(query, userID, startDate, endDate)
@@ -67,7 +68,9 @@ func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate string, e
 		}
 
 		if valid := date.Valid; valid {
-			movingAvg.Date = date.String
+			layout := "2006-01-02"
+			d, _ := time.Parse(layout, date.String)
+			movingAvg.Date = d
 		}
 
 		if valid := movingAvgVal.Valid; valid {
@@ -84,7 +87,7 @@ func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate string, e
 	return movingAverages
 }
 
-func (slr *SleepLogRepository) StandardDeviation(userID string, startDate string, endDate string) float64 {
+func (slr *SleepLogRepository) StandardDeviation(userID string, startDate time.Time, endDate time.Time) float64 {
 
 	rows, queryErr := slr.db.Query(sleepStdDevQuery, userID, startDate, endDate)
 	if queryErr != nil {
@@ -108,7 +111,7 @@ func (slr *SleepLogRepository) StandardDeviation(userID string, startDate string
 	return standardDeviation.Float64
 }
 
-func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate string, endDate string) []models.TagStat {
+func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate time.Time, endDate time.Time) []models.TagStat {
 
 	rows, queryErr := slr.db.Query(sleepQualityTagStatQuery, userID, startDate, endDate)
 	if queryErr != nil {
@@ -144,31 +147,49 @@ func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate stri
 
 }
 
-func (slr *SleepLogRepository) SleepLogs(userID string, startDate string, endDate string) []models.SleepLog {
-
+func (slr *SleepLogRepository) SleepLogs(userID string, startDate time.Time, endDate time.Time) []models.SleepLog {
 	rows, queryErr := slr.db.Query(sleepLogsQuery, userID, startDate, endDate)
 	if queryErr != nil {
 		panic(queryErr)
 	}
 	defer rows.Close()
 
-	var sleepLog models.SleepLog
 	var sleepLogs []models.SleepLog
-
 	for rows.Next() {
+		var sleepLog models.SleepLog
+		var sleepDateStr, createdAtStr, updatedAtStr string
+
 		scanErr := rows.Scan(
 			&sleepLog.SleepLogID,
 			&sleepLog.UserID,
 			&sleepLog.HoursSlept,
 			&sleepLog.SleepQualityTag,
 			&sleepLog.Note,
-			&sleepLog.SleepDate,
-			&sleepLog.CreatedAt,
-			&sleepLog.UpdatedAt,
+			&sleepDateStr,
+			&createdAtStr,
+			&updatedAtStr,
 		)
 		if scanErr != nil {
 			panic(scanErr)
 		}
+
+		// Parse the date strings into time.Time
+		parsedSleepDate, err := time.Parse("2006-01-02", sleepDateStr)
+		if err != nil {
+			panic(err)
+		}
+		parsedCreatedAt, err := time.Parse("2006-01-02 15:04:05", createdAtStr)
+		if err != nil {
+			panic(err)
+		}
+		parsedUpdatedAt, err := time.Parse("2006-01-02 15:04:05", updatedAtStr)
+		if err != nil {
+			panic(err)
+		}
+
+		sleepLog.SleepDate = parsedSleepDate
+		sleepLog.CreatedAt = parsedCreatedAt
+		sleepLog.UpdatedAt = parsedUpdatedAt
 
 		sleepLogs = append(sleepLogs, sleepLog)
 	}
@@ -176,6 +197,5 @@ func (slr *SleepLogRepository) SleepLogs(userID string, startDate string, endDat
 	if sleepLogs == nil {
 		return make([]models.SleepLog, 0)
 	}
-
 	return sleepLogs
 }

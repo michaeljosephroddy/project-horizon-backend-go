@@ -5,11 +5,12 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"fmt"
 	"log"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
 )
 
 type MoodLogRepository struct {
@@ -22,8 +23,7 @@ func NewMoodLogRepository(dbConnection *sql.DB) *MoodLogRepository {
 	}
 }
 
-func (mlr *MoodLogRepository) Streaks(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Streak {
-
+func (mlr *MoodLogRepository) Streaks(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Streak {
 	query := fmt.Sprintf(streaksQuery, operator)
 	rows, queryErr := mlr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
 	if queryErr != nil {
@@ -31,18 +31,33 @@ func (mlr *MoodLogRepository) Streaks(userID string, startDate string, endDate s
 	}
 	defer rows.Close()
 
-	var streak models.Streak
 	var streaks []models.Streak
-
 	for rows.Next() {
+		var streak models.Streak
+		var startDateStr, endDateStr string
+
 		scanErr := rows.Scan(
-			&streak.StartDate,
-			&streak.EndDate,
+			&startDateStr,
+			&endDateStr,
 			&streak.NumDays,
 		)
 		if scanErr != nil {
 			panic(scanErr)
 		}
+
+		// Parse the date strings into time.Time
+		parsedStartDate, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			panic(err)
+		}
+		parsedEndDate, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			panic(err)
+		}
+
+		streak.StartDate = parsedStartDate
+		streak.EndDate = parsedEndDate
+
 		streaks = append(streaks, streak)
 	}
 
@@ -54,11 +69,10 @@ func (mlr *MoodLogRepository) Streaks(userID string, startDate string, endDate s
 	if streaks == nil {
 		return make([]models.Streak, 0)
 	}
-
 	return streaks
 }
 
-func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate string, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
+func (mlr *MoodLogRepository) Days(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
 	// Build the query with the operator
 	query := fmt.Sprintf(daysQuery, operator)
 
@@ -75,7 +89,7 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 
 	for rows.Next() {
 		var dateStr string
-		var createdAt string
+		var createdAtStr string
 		var moodLogID int
 		var moodRating int
 		var note sql.NullString
@@ -88,7 +102,7 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 
 		scanErr := rows.Scan(
 			&dateStr,
-			&createdAt,
+			&createdAtStr,
 			&moodLogID,
 			&moodRating,
 			&note,
@@ -103,9 +117,27 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 			panic(scanErr)
 		}
 
+		// Parse the date string to time.Time
+		parsedDate, dateParseErr := time.Parse("2006-01-02", dateStr)
+		if dateParseErr != nil {
+			log.Printf("Error parsing date %s: %v", dateStr, dateParseErr)
+			panic(dateParseErr)
+		}
+
+		// Parse the createdAt string to time.Time
+		createdAt, createdAtParseErr := time.Parse(time.RFC3339, createdAtStr)
+		if createdAtParseErr != nil {
+			// Try alternative format if RFC3339 fails
+			createdAt, createdAtParseErr = time.Parse("2006-01-02 15:04:05", createdAtStr)
+			if createdAtParseErr != nil {
+				log.Printf("Error parsing createdAt %s: %v", createdAtStr, createdAtParseErr)
+				panic(createdAtParseErr)
+			}
+		}
+
 		if _, exists := resultsByDate[dateStr]; !exists {
 			resultsByDate[dateStr] = &models.Day{
-				Date:           dateStr,
+				Date:           parsedDate,
 				DailyAvgRating: dailyAvgRating,
 				MoodLogs:       []models.MoodLog{},
 			}
@@ -144,14 +176,15 @@ func (mlr *MoodLogRepository) Days(userID string, startDate string, endDate stri
 		days = append(days, *day)
 	}
 
+	// Sort by date descending (most recent first)
 	sort.Slice(days, func(i, j int) bool {
-		return days[i].Date > days[j].Date
+		return days[i].Date.After(days[j].Date)
 	})
 
 	return days
 }
 
-func (mlr *MoodLogRepository) StandardDeviation(userID string, startDate string, endDate string) float64 {
+func (mlr *MoodLogRepository) StandardDeviation(userID string, startDate time.Time, endDate time.Time) float64 {
 
 	rows, queryErr := mlr.db.Query(stdDevQuery, userID, startDate, endDate)
 	if queryErr != nil {
@@ -175,8 +208,7 @@ func (mlr *MoodLogRepository) StandardDeviation(userID string, startDate string,
 	return standardDeviation.Float64
 }
 
-func (mlr *MoodLogRepository) MovingAverages(userID string, startDate string, endDate string, numDaysPreceding string) []models.MovingAverage {
-
+func (mlr *MoodLogRepository) MovingAverages(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) []models.MovingAverage {
 	query := fmt.Sprintf(moodMovingAvgQuery, numDaysPreceding)
 	rows, queryErr := mlr.db.Query(query, userID, startDate, endDate)
 	if queryErr != nil {
@@ -185,18 +217,27 @@ func (mlr *MoodLogRepository) MovingAverages(userID string, startDate string, en
 	defer rows.Close()
 
 	var movingAverages []models.MovingAverage
-	var movingAverage models.MovingAverage
 
 	for rows.Next() {
-		scanErr := rows.Scan(
-			&movingAverage.Date,
-			&movingAverage.MovingAvg,
-		)
+		var dateStr string
+		var movingAvg float64
+
+		scanErr := rows.Scan(&dateStr, &movingAvg)
 		if scanErr != nil {
 			panic(scanErr)
 		}
 
-		movingAverages = append(movingAverages, movingAverage)
+		// Parse the date string to time.Time
+		parsedDate, parseErr := time.Parse("2006-01-02", dateStr)
+		if parseErr != nil {
+			log.Printf("Error parsing date %s: %v", dateStr, parseErr)
+			panic(parseErr)
+		}
+
+		movingAverages = append(movingAverages, models.MovingAverage{
+			Date:      parsedDate,
+			MovingAvg: movingAvg,
+		})
 	}
 
 	if movingAverages == nil {
@@ -206,7 +247,7 @@ func (mlr *MoodLogRepository) MovingAverages(userID string, startDate string, en
 	return movingAverages
 }
 
-func (mlr *MoodLogRepository) MoodLogs(userID string, startDate string, endDate string) []models.MoodLog {
+func (mlr *MoodLogRepository) MoodLogs(userID string, startDate time.Time, endDate time.Time) []models.MoodLog {
 
 	rows, err := mlr.db.Query(journalEntriesQuery, userID, startDate, endDate)
 	if err != nil {
@@ -239,7 +280,7 @@ func (mlr *MoodLogRepository) MoodLogs(userID string, startDate string, endDate 
 	return moodLogs
 }
 
-func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string, endDate string) []models.TagStat {
+func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate time.Time, endDate time.Time) []models.TagStat {
 
 	rows, queryErr := mlr.db.Query(moodTagFrequenciesQuery, userID, startDate, endDate)
 	if queryErr != nil {
@@ -274,7 +315,7 @@ func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate string
 	return moodTagFrequencies
 }
 
-func (mlr *MoodLogRepository) AvgMoodRating(userID string, startDate string, endDate string) float64 {
+func (mlr *MoodLogRepository) AvgMoodRating(userID string, startDate time.Time, endDate time.Time) float64 {
 
 	rows, queryErr := mlr.db.Query(AvgMoodRatingQuery, userID, startDate, endDate)
 	if queryErr != nil {

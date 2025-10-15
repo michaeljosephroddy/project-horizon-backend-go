@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
 	analytics_utils "github.com/michaeljosephroddy/project-horizon-backend-go/analytics/utils"
 	common_utils "github.com/michaeljosephroddy/project-horizon-backend-go/common/utils"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/models"
 )
 
 type AnalyticsHandler struct {
@@ -33,8 +34,9 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 		userID := common_utils.GetUserIDFromPath(request.URL.Path)
 		startDate := request.URL.Query().Get("startDate")
 		endDate := request.URL.Query().Get("endDate")
+		startDateParsed, endDateParsed := common_utils.ParseDates(startDate, endDate)
 
-		moodMetrics := handler.moodMetrics(userID, startDate, endDate)
+		moodMetrics := handler.moodMetrics(userID, startDateParsed, endDateParsed)
 		body, _ := json.Marshal(moodMetrics)
 		fmt.Println("DEBUG ", string(body))
 
@@ -46,8 +48,9 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 		userID := common_utils.GetUserIDFromPath(request.URL.Path)
 		startDate := request.URL.Query().Get("startDate")
 		endDate := request.URL.Query().Get("endDate")
+		startDateParsed, endDateParsed := common_utils.ParseDates(startDate, endDate)
 
-		sleepMetrics := handler.sleepMetrics(userID, startDate, endDate)
+		sleepMetrics := handler.sleepMetrics(userID, startDateParsed, endDateParsed)
 		body, _ := json.Marshal(sleepMetrics)
 		fmt.Println("DEBUG ", string(body))
 
@@ -72,7 +75,7 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 	}
 }
 
-func (handler *AnalyticsHandler) moodMetrics(userID string, startDate string, endDate string) *models.MoodMetric {
+func (handler *AnalyticsHandler) moodMetrics(userID string, startDate time.Time, endDate time.Time) *models.MoodMetric {
 
 	current := handler.analyticsService.analyzeMood(userID, startDate, endDate)
 
@@ -82,12 +85,12 @@ func (handler *AnalyticsHandler) moodMetrics(userID string, startDate string, en
 
 	diffs := handler.analyticsService.moodDiffs(current, previous)
 
-	current.MoodDiffs = diffs
+	current.Diffs = diffs
 
 	return current
 }
 
-func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate string, endDate string) *models.SleepMetric {
+func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time, endDate time.Time) *models.SleepMetric {
 
 	current := handler.analyticsService.analyzeSleep(userID, startDate, endDate)
 
