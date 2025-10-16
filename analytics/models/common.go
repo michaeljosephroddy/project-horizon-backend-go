@@ -1,0 +1,34 @@
+package models
+
+import "time"
+
+type MovingAverage struct {
+	Date      time.Time `json:"date"`
+	MovingAvg float64   `json:"movingAvg"`
+}
+
+type Day struct {
+	Date           time.Time       `json:"date"`
+	DailyAvgRating float64         `json:"dailyAvgRating"`
+	MoodLogs       []MoodLog       `json:"moodLogs"`
+	SleepLogs      []SleepLog      `json:"sleepLogs"`
+	MedicationLogs []MedicationLog `json:"medicationLogs"`
+}
+
+type Streak struct {
+	StartDate time.Time `json:"startDate"`
+	EndDate   time.Time `json:"endDate"`
+	NumDays   int       `json:"numDays"`
+	Days      []Day     `json:"days"`
+}
+
+type TagStat struct {
+	TagName    string  `json:"tagName"`
+	Count      int     `json:"count"`
+	Percentage float64 `json:"percentage"`
+}
+
+type MetricChange struct {
+	PercentChange float64 `json:"percentChange"`
+	Shift         string  `json:"shift"`
+}

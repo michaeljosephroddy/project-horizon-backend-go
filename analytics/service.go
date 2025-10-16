@@ -7,8 +7,8 @@ import (
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/utils"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
 )
 
 type analyticsService struct {
@@ -164,45 +164,35 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 
 func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models.MoodMetric) models.MoodDiff {
 
-	var avgRatingChange float64
+	var avgRating models.MetricChange
 	if previousPeriod.AvgRating > 0 {
-		avgRatingChange = utils.PercentChange(currentPeriod.AvgRating, previousPeriod.AvgRating)
+		avgRating.PercentChange = utils.PercentChange(currentPeriod.AvgRating, previousPeriod.AvgRating)
 	}
 
-	var trendShift string
+	var trend models.ShiftChange
 	if previousPeriod.Trend != "" {
-		trendShift = fmt.Sprintf("%s -> %s", previousPeriod.Trend, currentPeriod.Trend)
+		trend.Description = fmt.Sprintf("%s -> %s", previousPeriod.Trend, currentPeriod.Trend)
+		trend.Change = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
 	}
 
-	var movingAvgChange float64
-	if previousPeriod.MovingAvg > 0 {
-		movingAvgChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
-	}
-
-	var stabilityShift string
+	var stability models.MetricChange
 	if previousPeriod.Stability != "" {
-		stabilityShift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
+		stability.Shift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
 	}
-
-	var stabilityChange float64
 	if previousPeriod.StdDeviation > 0 {
-		stabilityChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
+		stability.PercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
 	}
 
 	const tagStatsIndex = 0
 
-	var topTagShift string
+	var topTag models.MetricChange
 	if utils.BothContainValues(currentPeriod.TagStats, previousPeriod.TagStats) {
 		previousTag := previousPeriod.TagStats[tagStatsIndex]
 		currentTag := currentPeriod.TagStats[tagStatsIndex]
-		topTagShift = fmt.Sprintf("%s -> %s", previousTag.TagName, currentTag.TagName)
-	}
+		topTag.Shift = fmt.Sprintf("%s -> %s", previousTag.TagName, currentTag.TagName)
 
-	var topTagChange float64
-	if utils.BothContainValues(currentPeriod.TagStats, previousPeriod.TagStats) {
-		previousTag := utils.FindPreviousMood(currentPeriod.TagStats, previousPeriod.TagStats)
-		currentTag := currentPeriod.TagStats[tagStatsIndex]
-		topTagChange = utils.PercentChange(currentTag.Percentage, previousTag.Percentage)
+		previousTagForCalc := utils.FindPreviousMood(currentPeriod.TagStats, previousPeriod.TagStats)
+		topTag.PercentChange = utils.PercentChange(currentTag.Percentage, previousTagForCalc.Percentage)
 	}
 
 	// Helper function to calculate category diffs
@@ -212,7 +202,12 @@ func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models
 		if utils.BothContainValues(current.TagStats, previous.TagStats) {
 			previousTag := utils.FindPreviousMood(current.TagStats, previous.TagStats)
 			currentTag := current.TagStats[tagStatsIndex]
-			diff.TopTagChange = utils.PercentChange(currentTag.Percentage, previousTag.Percentage)
+			diff.TopTag.PercentChange = utils.PercentChange(currentTag.Percentage, previousTag.Percentage)
+
+			// Add shift for category top tag
+			previousTopTag := previous.TagStats[tagStatsIndex]
+			currentTopTag := current.TagStats[tagStatsIndex]
+			diff.TopTag.Shift = fmt.Sprintf("%s -> %s", previousTopTag.TagName, currentTopTag.TagName)
 		}
 
 		if utils.BothContainValues(current.Days, previous.Days) {
@@ -227,13 +222,10 @@ func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models
 	}
 
 	moodDiffs := models.MoodDiff{
-		AvgRatingChange:    avgRatingChange,
-		TrendShift:         trendShift,
-		MovingAvgChange:    movingAvgChange,
-		StabilityShift:     stabilityShift,
-		StabilityChange:    stabilityChange,
-		TopTagShift:        topTagShift,
-		TopTagChange:       topTagChange,
+		AvgRating: avgRating,
+		Trend:     trend,
+		Stability: stability,
+		TopTag:    topTag,
 		Categories: models.CategoryDiffs{
 			Positive: calculateCategoryDiff(currentPeriod.Categories.Positive, previousPeriod.Categories.Positive),
 			Neutral:  calculateCategoryDiff(currentPeriod.Categories.Neutral, previousPeriod.Categories.Neutral),
@@ -294,59 +286,42 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 }
 
 func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *models.SleepMetric) models.SleepDiff {
-
-	var avgSleepPercentChange float64
+	var avgSleepHours models.MetricChange
 	if previousPeriod.AvgSleepHours > 0 {
-		avgSleepPercentChange = utils.PercentChange(currentPeriod.AvgSleepHours, previousPeriod.AvgSleepHours)
+		avgSleepHours.PercentChange = utils.PercentChange(currentPeriod.AvgSleepHours, previousPeriod.AvgSleepHours)
 	}
 
-	var trendShift string
+	var trend models.ShiftChange
 	if previousPeriod.SleepTrend != "" {
-		trendShift = fmt.Sprintf("%s -> %s", previousPeriod.SleepTrend, currentPeriod.SleepTrend)
+		trend.Description = fmt.Sprintf("%s -> %s", previousPeriod.SleepTrend, currentPeriod.SleepTrend)
+		trend.Change = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
 	}
 
-	var movingAvgPercentChange float64
-	if previousPeriod.MovingAvg > 0 {
-		movingAvgPercentChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
-	}
-
-	var stabilityShift string
+	var stability models.MetricChange
 	if previousPeriod.Stability != "" {
-		stabilityShift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
+		stability.Shift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
 	}
-
-	var stabilityPercentChange float64
 	if previousPeriod.StdDeviation > 0 {
-		stabilityPercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
-
+		stability.PercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
 	}
 
 	const moodTagStatsIndex = 0
-
-	var topSleepQualityTagShift string
+	var topQualityTag models.MetricChange
 	if utils.BothContainValues(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats) {
 		previousMood := previousPeriod.SleepQualityTagStats[moodTagStatsIndex]
 		currentMood := currentPeriod.SleepQualityTagStats[moodTagStatsIndex]
-		topSleepQualityTagShift = fmt.Sprintf("%s -> %s", previousMood.TagName, currentMood.TagName)
-	}
+		topQualityTag.Shift = fmt.Sprintf("%s -> %s", previousMood.TagName, currentMood.TagName)
 
-	var topSleepQualityTagPercentChange string
-	if utils.BothContainValues(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats) {
-		previousMood := utils.FindPreviousMood(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats)
-		currentMood := currentPeriod.SleepQualityTagStats[moodTagStatsIndex]
-		topSleepQualityTagPercentChange = fmt.Sprintf("%s %f", currentMood.TagName, utils.PercentChange(currentMood.Percentage, previousMood.Percentage))
+		previousMoodForCalc := utils.FindPreviousMood(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats)
+		topQualityTag.PercentChange = utils.PercentChange(currentMood.Percentage, previousMoodForCalc.Percentage)
 	}
 
 	sleepDiffs := models.SleepDiff{
-		AvgSleepHoursPercentChange:      avgSleepPercentChange,
-		TrendShift:                      trendShift,
-		MovingAvgPercentChange:          movingAvgPercentChange,
-		StabilityShift:                  stabilityShift,
-		StabilityPercentChange:          stabilityPercentChange,
-		TopSleepQualityTagShift:         topSleepQualityTagShift,
-		TopSleepQualityTagPercentChange: topSleepQualityTagPercentChange,
+		AvgSleepHours: avgSleepHours,
+		Trend:         trend,
+		Stability:     stability,
+		TopQualityTag: topQualityTag,
 	}
 
 	return sleepDiffs
-
 }
