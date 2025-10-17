@@ -15,11 +15,11 @@ type AnalyticsHandler struct {
 	analyticsService *analyticsService
 }
 
-// TODO need to come up with a better regexp
-var analyticsUsersMood string = `^/analytics/users/([0-9]+)/mood$`
-var analyticsUsersSleep string = `^/analytics/users/([0-9]+)/sleep$`
-
-// var analyticsUsersMedication string = `^/analytics/users/([0-9]+)/medication$`
+const (
+	analyticsUsersMood  = `^/analytics/users/([0-9]+)/mood$`
+	analyticsUsersSleep = `^/analytics/users/([0-9]+)/sleep$`
+	// analyticsUsersMedication = `^/analytics/users/([0-9]+)/medication$`
+)
 
 func NewAnalyticsHandler(analyticsService *analyticsService) *AnalyticsHandler {
 	return &AnalyticsHandler{
@@ -30,77 +30,78 @@ func NewAnalyticsHandler(analyticsService *analyticsService) *AnalyticsHandler {
 func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, request *http.Request) {
 	switch {
 	case common_utils.MatchURL(analyticsUsersMood, request.URL.Path):
-
-		userID := common_utils.GetUserIDFromPath(request.URL.Path)
-		startDate := request.URL.Query().Get("startDate")
-		endDate := request.URL.Query().Get("endDate")
-		startDateParsed, endDateParsed := common_utils.ParseDates(startDate, endDate)
-
-		moodMetrics := handler.moodMetrics(userID, startDateParsed, endDateParsed)
-		body, _ := json.Marshal(moodMetrics)
-		fmt.Println("DEBUG ", string(body))
-
-		writer.Header().Set("Content-Type", "application/json")
-		writer.Write(body)
-
+		handler.handleMoodRequest(writer, request)
 	case common_utils.MatchURL(analyticsUsersSleep, request.URL.Path):
-
-		userID := common_utils.GetUserIDFromPath(request.URL.Path)
-		startDate := request.URL.Query().Get("startDate")
-		endDate := request.URL.Query().Get("endDate")
-		startDateParsed, endDateParsed := common_utils.ParseDates(startDate, endDate)
-
-		sleepMetrics := handler.sleepMetrics(userID, startDateParsed, endDateParsed)
-		body, _ := json.Marshal(sleepMetrics)
-		fmt.Println("DEBUG ", string(body))
-
-		writer.Header().Set("Content-Type", "application/json")
-		writer.Write(body)
-
-	/* case common_utils.MatchURL(analyticsUsersMedication, request.URL.Path):
-
-	userID := common_utils.GetUserIDFromPath(request.URL.Path)
-	startDate := request.URL.Query().Get("startDate")
-	endDate := request.URL.Query().Get("endDate")
-
-	var medication models.Medication
-	body, _ := json.Marshal(medication)
-	fmt.Println("DEBUG ", string(body))
-
-	writer.Header().Set("Content-Type", "application/json")
-	writer.Write(body) */
+		handler.handleSleepRequest(writer, request)
 	default:
-		writer.WriteHeader(http.StatusNotFound)
-		writer.Write([]byte("404 path not found"))
+		http.Error(writer, "404 path not found", http.StatusNotFound)
 	}
 }
 
+func (handler *AnalyticsHandler) handleMoodRequest(writer http.ResponseWriter, request *http.Request) {
+	userID, startDate, endDate, err := handler.extractRequestParams(request)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	moodMetrics := handler.moodMetrics(userID, startDate, endDate)
+	handler.writeJSONResponse(writer, moodMetrics)
+}
+
+func (handler *AnalyticsHandler) handleSleepRequest(writer http.ResponseWriter, request *http.Request) {
+	userID, startDate, endDate, err := handler.extractRequestParams(request)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sleepMetrics := handler.sleepMetrics(userID, startDate, endDate)
+	handler.writeJSONResponse(writer, sleepMetrics)
+}
+
+func (handler *AnalyticsHandler) extractRequestParams(request *http.Request) (string, time.Time, time.Time, error) {
+	userID := common_utils.GetUserIDFromPath(request.URL.Path)
+	if userID == "" {
+		return "", time.Time{}, time.Time{}, fmt.Errorf("invalid user ID")
+	}
+
+	startDateStr := request.URL.Query().Get("startDate")
+	endDateStr := request.URL.Query().Get("endDate")
+	
+	if startDateStr == "" || endDateStr == "" {
+		return "", time.Time{}, time.Time{}, fmt.Errorf("startDate and endDate are required")
+	}
+
+	startDate, endDate := common_utils.ParseDates(startDateStr, endDateStr)
+	return userID, startDate, endDate, nil
+}
+
+func (handler *AnalyticsHandler) writeJSONResponse(writer http.ResponseWriter, data interface{}) {
+	body, err := json.Marshal(data)
+	if err != nil {
+		http.Error(writer, "failed to marshal response", http.StatusInternalServerError)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	writer.Write(body)
+}
+
 func (handler *AnalyticsHandler) moodMetrics(userID string, startDate time.Time, endDate time.Time) *models.MoodMetric {
-
 	current := handler.analyticsService.analyzeMood(userID, startDate, endDate)
-
 	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
-
 	previous := handler.analyticsService.analyzeMood(userID, previousStart, previousEnd)
-
 	diffs := handler.analyticsService.moodDiffs(current, previous)
-
 	current.Diffs = diffs
-
 	return current
 }
 
 func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time, endDate time.Time) *models.SleepMetric {
-
 	current := handler.analyticsService.analyzeSleep(userID, startDate, endDate)
-
 	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
-
 	previous := handler.analyticsService.analyzeSleep(userID, previousStart, previousEnd)
-
 	diffs := handler.analyticsService.sleepDiffs(current, previous)
-
 	current.SleepDiffs = diffs
-
 	return current
 }

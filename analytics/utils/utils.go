@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
 )
 
+// TODO make these package private if not used outside analytics package
 func MoodTagFrequencies(days []models.Day) []models.TagStat {
 	var tags []string
 	for _, day := range days {
@@ -193,7 +193,6 @@ func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []
 func AddMedicationLogsToDays(userID string, mlr *database.MedicationLogRepository, days []models.Day) {
 	for i, day := range days {
 		medicationLogs := mlr.MedicationLogs(userID, day.Date, day.Date)
-		fmt.Println("DEBUG ", medicationLogs)
 
 		if len(medicationLogs) == 0 {
 			days[i].MedicationLogs = make([]models.MedicationLog, 0)
