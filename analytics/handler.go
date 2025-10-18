@@ -30,51 +30,44 @@ func NewAnalyticsHandler(analyticsService *analyticsService) *AnalyticsHandler {
 func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, request *http.Request) {
 	switch {
 	case common_utils.MatchURL(analyticsUsersMood, request.URL.Path):
-		handler.handleMoodRequest(writer, request)
+		userID, startDate, endDate, err := handler.extractRequestParams(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		moodMetrics := handler.moodMetrics(userID, startDate, endDate)
+		handler.writeJSONResponse(writer, moodMetrics)
 	case common_utils.MatchURL(analyticsUsersSleep, request.URL.Path):
-		handler.handleSleepRequest(writer, request)
+		userID, startDate, endDate, err := handler.extractRequestParams(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		sleepMetrics := handler.sleepMetrics(userID, startDate, endDate)
+		handler.writeJSONResponse(writer, sleepMetrics)
 	default:
 		http.Error(writer, "404 path not found", http.StatusNotFound)
 	}
 }
 
-func (handler *AnalyticsHandler) handleMoodRequest(writer http.ResponseWriter, request *http.Request) {
-	userID, startDate, endDate, err := handler.extractRequestParams(request)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	moodMetrics := handler.moodMetrics(userID, startDate, endDate)
-	handler.writeJSONResponse(writer, moodMetrics)
-}
-
-func (handler *AnalyticsHandler) handleSleepRequest(writer http.ResponseWriter, request *http.Request) {
-	userID, startDate, endDate, err := handler.extractRequestParams(request)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	sleepMetrics := handler.sleepMetrics(userID, startDate, endDate)
-	handler.writeJSONResponse(writer, sleepMetrics)
-}
-
 func (handler *AnalyticsHandler) extractRequestParams(request *http.Request) (string, time.Time, time.Time, error) {
-	userID := common_utils.GetUserIDFromPath(request.URL.Path)
-	if userID == "" {
-		return "", time.Time{}, time.Time{}, fmt.Errorf("invalid user ID")
+	userID, err := common_utils.GetUserIDFromPath(request.URL.Path)
+	if err != nil {
+		return "", time.Time{}, time.Time{}, err
 	}
 
-	startDateStr := request.URL.Query().Get("startDate")
-	endDateStr := request.URL.Query().Get("endDate")
-	
-	if startDateStr == "" || endDateStr == "" {
+	startDate := request.URL.Query().Get("startDate")
+	endDate := request.URL.Query().Get("endDate")
+
+	if startDate == "" || endDate == "" {
 		return "", time.Time{}, time.Time{}, fmt.Errorf("startDate and endDate are required")
 	}
 
-	startDate, endDate := common_utils.ParseDates(startDateStr, endDateStr)
-	return userID, startDate, endDate, nil
+	startDateParsed, endDateParsed := common_utils.ParseDates(startDate, endDate)
+
+	return userID, startDateParsed, endDateParsed, nil
 }
 
 func (handler *AnalyticsHandler) writeJSONResponse(writer http.ResponseWriter, data interface{}) {
