@@ -32,7 +32,7 @@ type SleepMetric struct {
 // Sleep Diff
 type SleepDiff struct {
 	AvgSleepHours MetricChange `json:"avgSleepHours"`
-	Trend         ShiftChange       `json:"trend"`
+	Trend         ShiftChange  `json:"trend"`
 	Stability     MetricChange `json:"stability"`
 	TopQualityTag MetricChange `json:"topQualityTag"`
 }

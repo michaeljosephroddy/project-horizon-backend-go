@@ -41,13 +41,12 @@ type CategoryData struct {
 
 // Mood Diff
 type MoodDiff struct {
-	AvgRating  MetricChange `json:"avgRating"`
-	Trend      ShiftChange      `json:"trend"`
-	Stability  MetricChange `json:"stability"`
-	TopTag     MetricChange `json:"topTag"`
-	Categories CategoryDiffs    `json:"categories"`
+	AvgRating  MetricChange  `json:"avgRating"`
+	Trend      ShiftChange   `json:"trend"`
+	Stability  MetricChange  `json:"stability"`
+	TopTag     MetricChange  `json:"topTag"`
+	Categories CategoryDiffs `json:"categories"`
 }
-
 
 type CategoryDiffs struct {
 	Positive CategoryDiff `json:"positive"`
