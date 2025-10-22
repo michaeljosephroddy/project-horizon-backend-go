@@ -19,6 +19,11 @@ func NewSleepLogRepository(dbConnection *sql.DB) *SleepLogRepository {
 	}
 }
 
+const (
+	dateLayout     = "2006-01-02"
+	dateTimeLayout = "2006-01-02 15:04:05"
+)
+
 func (slr *SleepLogRepository) AvgSleepHours(userID string, startDate time.Time, endDate time.Time) float64 {
 
 	rows, queryErr := slr.db.Query(avgSleepHoursQuery, userID, startDate, endDate)
@@ -147,19 +152,21 @@ func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate time
 
 }
 
-func (slr *SleepLogRepository) SleepLogs(userID string, startDate time.Time, endDate time.Time) []models.SleepLog {
-	rows, queryErr := slr.db.Query(sleepLogsQuery, userID, startDate, endDate)
-	if queryErr != nil {
-		panic(queryErr)
+func (slr *SleepLogRepository) SleepLogs(userID string, startDate time.Time, endDate time.Time) ([]models.SleepLog, error) {
+
+	rows, err := slr.db.Query(sleepLogsQuery, userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query sleep logs: %w", err)
 	}
 	defer rows.Close()
-
+	
 	var sleepLogs []models.SleepLog
+	
 	for rows.Next() {
 		var sleepLog models.SleepLog
 		var sleepDateStr, createdAtStr, updatedAtStr string
-
-		scanErr := rows.Scan(
+		
+		err := rows.Scan(
 			&sleepLog.SleepLogID,
 			&sleepLog.UserID,
 			&sleepLog.HoursSlept,
@@ -169,33 +176,40 @@ func (slr *SleepLogRepository) SleepLogs(userID string, startDate time.Time, end
 			&createdAtStr,
 			&updatedAtStr,
 		)
-		if scanErr != nil {
-			panic(scanErr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan sleep log row: %w", err)
 		}
-
+		
 		// Parse the date strings into time.Time
-		parsedSleepDate, err := time.Parse("2006-01-02", sleepDateStr)
+		parsedSleepDate, err := time.Parse(dateLayout, sleepDateStr)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("failed to parse sleep_date: %w", err)
 		}
-		parsedCreatedAt, err := time.Parse("2006-01-02 15:04:05", createdAtStr)
-		if err != nil {
-			panic(err)
-		}
-		parsedUpdatedAt, err := time.Parse("2006-01-02 15:04:05", updatedAtStr)
-		if err != nil {
-			panic(err)
-		}
-
 		sleepLog.SleepDate = parsedSleepDate
+		
+		parsedCreatedAt, err := time.Parse(dateTimeLayout, createdAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse created_at: %w", err)
+		}
 		sleepLog.CreatedAt = parsedCreatedAt
+		
+		parsedUpdatedAt, err := time.Parse(dateTimeLayout, updatedAtStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse updated_at: %w", err)
+		}
 		sleepLog.UpdatedAt = parsedUpdatedAt
-
+		
 		sleepLogs = append(sleepLogs, sleepLog)
 	}
-
-	if sleepLogs == nil {
-		return make([]models.SleepLog, 0)
+	
+	// Check for errors during iteration
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating sleep log rows: %w", err)
 	}
-	return sleepLogs
+	
+	if sleepLogs == nil {
+		return make([]models.SleepLog, 0), nil
+	}
+	
+	return sleepLogs, nil
 }

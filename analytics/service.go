@@ -25,7 +25,7 @@ func NewAnalyticsService(moodLogRepository *database.MoodLogRepository, sleepLog
 	}
 }
 
-func (service *analyticsService) analyzeMood(userID string, startDate time.Time, endDate time.Time) *models.MoodMetric {
+func (service *analyticsService) analyzeMood(userID string, startDate time.Time, endDate time.Time) (*models.MoodMetric, error) {
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
@@ -71,54 +71,86 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 
 	// Positive Days
 	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
-	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, positiveDays)
-	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, positiveDays)
+	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, positiveDays); err != nil {
+		return nil, fmt.Errorf("failed to add sleep logs to positive days: %w", err)
+	}
+	if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, positiveDays); err != nil {
+		return nil, fmt.Errorf("failed to add medication logs to positive days: %w", err)
+	}
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
 	// Neutral Days
 	neutralDays := service.moodLogRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
-	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, neutralDays)
-	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, neutralDays)
+	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, neutralDays); err != nil {
+		return nil, fmt.Errorf("failed to add sleep logs to neutral days: %w", err)
+	}
+	if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, neutralDays); err != nil {
+		return nil, fmt.Errorf("failed to add medication logs to neutral days: %w", err)
+	}
 	mtfNeutralDays := utils.MoodTagFrequencies(neutralDays)
 
 	// Negative Days
 	negativeDays := service.moodLogRepository.Days(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
-	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, negativeDays)
-	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, negativeDays)
+	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, negativeDays); err != nil {
+		return nil, fmt.Errorf("failed to add sleep logs to negative days: %w", err)
+	}
+	if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, negativeDays); err != nil {
+		return nil, fmt.Errorf("failed to add medication logs to negative days: %w", err)
+	}
 	mtfNegativeDays := utils.MoodTagFrequencies(negativeDays)
 
 	// Clinical Days
 	clinicalDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
-	utils.AddSleepLogsToDays(userID, service.sleepLogRepository, clinicalDays)
-	utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, clinicalDays)
+	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, clinicalDays); err != nil {
+		return nil, fmt.Errorf("failed to add sleep logs to clinical days: %w", err)
+	}
+	if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, clinicalDays); err != nil {
+		return nil, fmt.Errorf("failed to add medication logs to clinical days: %w", err)
+	}
 	mtfClinicalDays := utils.MoodTagFrequencies(clinicalDays)
 
 	// Positive Streaks
 	positiveStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
 	for _, streak := range positiveStreaks {
-		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
-		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
+		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
+			return nil, fmt.Errorf("failed to add sleep logs to positive streak: %w", err)
+		}
+		if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days); err != nil {
+			return nil, fmt.Errorf("failed to add medication logs to positive streak: %w", err)
+		}
 	}
 
 	// Neutral Streaks
 	neutralStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
 	for _, streak := range neutralStreaks {
-		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
-		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
+		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
+			return nil, fmt.Errorf("failed to add sleep logs to neutral streak: %w", err)
+		}
+		if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days); err != nil {
+			return nil, fmt.Errorf("failed to add medication logs to neutral streak: %w", err)
+		}
 	}
 
 	// Negative Streaks
 	negativeStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
 	for _, streak := range negativeStreaks {
-		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
-		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
+		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
+			return nil, fmt.Errorf("failed to add sleep logs to negative streak: %w", err)
+		}
+		if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days); err != nil {
+			return nil, fmt.Errorf("failed to add medication logs to negative streak: %w", err)
+		}
 	}
 
 	// Clinical Streaks
 	clinicalStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
 	for _, streak := range clinicalStreaks {
-		utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days)
-		utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days)
+		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
+			return nil, fmt.Errorf("failed to add sleep logs to clinical streak: %w", err)
+		}
+		if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days); err != nil {
+			return nil, fmt.Errorf("failed to add medication logs to clinical streak: %w", err)
+		}
 	}
 
 	granularity := utils.Granularity(numDays)
@@ -159,7 +191,7 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 		Diffs: models.MoodDiff{},
 	}
 
-	return moodMetrics
+	return moodMetrics, nil
 }
 
 func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models.MoodMetric) models.MoodDiff {

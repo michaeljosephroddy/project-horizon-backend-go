@@ -35,8 +35,11 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		moodMetrics := handler.moodMetrics(userID, startDate, endDate)
+		moodMetrics, err := handler.moodMetrics(userID, startDate, endDate)
+		if err != nil {
+			http.Error(writer, "failed to retrieve mood metrics", http.StatusInternalServerError)
+			return
+		}
 		handler.writeJSONResponse(writer, moodMetrics)
 	case common_utils.MatchURL(analyticsUsersSleep, request.URL.Path):
 		userID, startDate, endDate, err := handler.extractRequestParams(request)
@@ -44,14 +47,12 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-
 		sleepMetrics := handler.sleepMetrics(userID, startDate, endDate)
 		handler.writeJSONResponse(writer, sleepMetrics)
 	default:
 		http.Error(writer, "404 path not found", http.StatusNotFound)
 	}
 }
-
 func (handler *AnalyticsHandler) extractRequestParams(request *http.Request) (string, time.Time, time.Time, error) {
 	userID, err := common_utils.GetUserIDFromPath(request.URL.Path)
 	if err != nil {
@@ -81,13 +82,22 @@ func (handler *AnalyticsHandler) writeJSONResponse(writer http.ResponseWriter, d
 	writer.Write(body)
 }
 
-func (handler *AnalyticsHandler) moodMetrics(userID string, startDate time.Time, endDate time.Time) *models.MoodMetric {
-	current := handler.analyticsService.analyzeMood(userID, startDate, endDate)
+func (handler *AnalyticsHandler) moodMetrics(userID string, startDate time.Time, endDate time.Time) (*models.MoodMetric, error) {
+	current, err := handler.analyticsService.analyzeMood(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze current mood period: %w", err)
+	}
+
 	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
-	previous := handler.analyticsService.analyzeMood(userID, previousStart, previousEnd)
+	previous, err := handler.analyticsService.analyzeMood(userID, previousStart, previousEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze previous mood period: %w", err)
+	}
+
 	diffs := handler.analyticsService.moodDiffs(current, previous)
 	current.Diffs = diffs
-	return current
+
+	return current, nil
 }
 
 func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time, endDate time.Time) *models.SleepMetric {

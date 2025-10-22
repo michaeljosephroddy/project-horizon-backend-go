@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 
@@ -176,30 +177,34 @@ func StdDeviation(standardDeviation float64, noData float64, minModerateVal floa
 	return stability
 }
 
-func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []models.Day) {
+func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []models.Day) error {
 	for i, day := range days {
-		sleepLogs := slr.SleepLogs(userID, day.Date, day.Date)
-
+		sleepLogs, err := slr.SleepLogs(userID, day.Date, day.Date)
+		if err != nil {
+			return fmt.Errorf("failed to get sleep logs for day %s: %w", day.Date.Format("2006-01-02"), err)
+		}
 		if len(sleepLogs) == 0 {
 			days[i].SleepLogs = make([]models.SleepLog, 0)
 			continue
 		}
-
 		// Just assign all the logs directly since the query already filtered by date
 		days[i].SleepLogs = sleepLogs
 	}
+	return nil
 }
 
-func AddMedicationLogsToDays(userID string, mlr *database.MedicationLogRepository, days []models.Day) {
+func AddMedicationLogsToDays(userID string, mlr *database.MedicationLogRepository, days []models.Day) error {
 	for i, day := range days {
-		medicationLogs := mlr.MedicationLogs(userID, day.Date, day.Date)
-
+		medicationLogs, err := mlr.MedicationLogs(userID, day.Date, day.Date)
+		if err != nil {
+			return fmt.Errorf("failed to get medication logs for day %s: %w", day.Date.Format("2006-01-02"), err)
+		}
 		if len(medicationLogs) == 0 {
 			days[i].MedicationLogs = make([]models.MedicationLog, 0)
 			continue
 		}
-
 		// Just assign all the logs directly since the query already filtered by date
 		days[i].MedicationLogs = medicationLogs
 	}
+	return nil
 }
