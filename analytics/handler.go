@@ -47,7 +47,11 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 			return
 		}
-		sleepMetrics := handler.sleepMetrics(userID, startDate, endDate)
+		sleepMetrics, err := handler.sleepMetrics(userID, startDate, endDate)
+		if err != nil {
+			http.Error(writer, "failed to retrieve sleep metrics", http.StatusInternalServerError)
+			return
+		}
 		handler.writeJSONResponse(writer, sleepMetrics)
 	default:
 		http.Error(writer, "404 path not found", http.StatusNotFound)
@@ -100,11 +104,20 @@ func (handler *AnalyticsHandler) moodMetrics(userID string, startDate time.Time,
 	return current, nil
 }
 
-func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time, endDate time.Time) *models.SleepMetric {
-	current := handler.analyticsService.analyzeSleep(userID, startDate, endDate)
+func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time, endDate time.Time) (*models.SleepMetric, error) {
+	current, err := handler.analyticsService.analyzeSleep(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze current sleep period: %w", err)
+	}
+
 	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
-	previous := handler.analyticsService.analyzeSleep(userID, previousStart, previousEnd)
+	previous, err := handler.analyticsService.analyzeSleep(userID, previousStart, previousEnd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze previous sleep period: %w", err)
+	}
+
 	diffs := handler.analyticsService.sleepDiffs(current, previous)
 	current.SleepDiffs = diffs
-	return current
+
+	return current, nil
 }

@@ -269,14 +269,19 @@ func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models
 	return moodDiffs
 }
 
-func (service *analyticsService) analyzeSleep(userID string, startDate time.Time, endDate time.Time) *models.SleepMetric {
-
-	avgSleepHours := service.sleepLogRepository.AvgSleepHours(userID, startDate, endDate)
+func (service *analyticsService) analyzeSleep(userID string, startDate time.Time, endDate time.Time) (*models.SleepMetric, error) {
+	avgSleepHours, err := service.sleepLogRepository.AvgSleepHours(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get average sleep hours: %w", err)
+	}
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
 
-	movingAverages := service.sleepLogRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
+	movingAverages, err := service.sleepLogRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get moving average sleep: %w", err)
+	}
 
 	var movingAvg float64
 	if len(movingAverages) > 0 {
@@ -286,7 +291,10 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 
 	sleepTrend := utils.Trend(movingAverages)
 
-	standardDeviation := service.sleepLogRepository.StandardDeviation(userID, startDate, endDate)
+	standardDeviation, err := service.sleepLogRepository.StandardDeviation(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sleep standard deviation: %w", err)
+	}
 
 	const (
 		noData           = 0
@@ -295,10 +303,12 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 	)
 
 	stability := utils.StdDeviation(standardDeviation, noData, minModerateSleep, minVolatileSleep)
-
 	granularity := utils.Granularity(numDays)
 
-	topSleepQualityTags := service.sleepLogRepository.SleepQualityTagStat(userID, startDate, endDate)
+	topSleepQualityTags, err := service.sleepLogRepository.SleepQualityTagStat(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sleep quality tag stats: %w", err)
+	}
 
 	sleepMetrics := &models.SleepMetric{
 		UserID:               userID,
@@ -314,7 +324,7 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 		SleepDiffs:           models.SleepDiff{},
 	}
 
-	return sleepMetrics
+	return sleepMetrics, nil
 }
 
 func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *models.SleepMetric) models.SleepDiff {
