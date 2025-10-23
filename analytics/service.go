@@ -30,7 +30,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
 
-	movingAverages := service.moodLogRepository.MovingAverages(userID, startDate, endDate, numDaysPreceding)
+	movingAverages, err := service.moodLogRepository.MovingAverages(userID, startDate, endDate, numDaysPreceding)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get moving averages: %w", err)
+	}
 
 	var movingAvg float64
 	if len(movingAverages) > 0 {
@@ -40,7 +43,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 
 	moodTrend := utils.Trend(movingAverages)
 
-	standardDeviation := service.moodLogRepository.StandardDeviation(userID, startDate, endDate)
+	standardDeviation, err := service.moodLogRepository.StandardDeviation(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get standard deviation: %w", err)
+	}
 
 	const (
 		noData          = 0
@@ -50,9 +56,15 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 
 	stability := utils.StdDeviation(standardDeviation, noData, minModerateMood, minVolatileMood)
 
-	avgMoodRating := service.moodLogRepository.AvgMoodRating(userID, startDate, endDate)
+	avgMoodRating, err := service.moodLogRepository.AvgMoodRating(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get average mood rating: %w", err)
+	}
 
-	mtfPeriod := service.moodLogRepository.MoodTagFrequencies(userID, startDate, endDate)
+	mtfPeriod, err := service.moodLogRepository.MoodTagFrequencies(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get mood tag frequencies: %w", err)
+	}
 
 	const (
 		greaterThanOrEual        = ">="
@@ -70,7 +82,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	)
 
 	// Positive Days
-	positiveDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
+	positiveDays, err := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get positive days: %w", err)
+	}
 	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, positiveDays); err != nil {
 		return nil, fmt.Errorf("failed to add sleep logs to positive days: %w", err)
 	}
@@ -80,7 +95,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
 	// Neutral Days
-	neutralDays := service.moodLogRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
+	neutralDays, err := service.moodLogRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get neutral days: %w", err)
+	}
 	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, neutralDays); err != nil {
 		return nil, fmt.Errorf("failed to add sleep logs to neutral days: %w", err)
 	}
@@ -90,7 +108,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	mtfNeutralDays := utils.MoodTagFrequencies(neutralDays)
 
 	// Negative Days
-	negativeDays := service.moodLogRepository.Days(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
+	negativeDays, err := service.moodLogRepository.Days(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get negative days: %w", err)
+	}
 	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, negativeDays); err != nil {
 		return nil, fmt.Errorf("failed to add sleep logs to negative days: %w", err)
 	}
@@ -100,7 +121,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	mtfNegativeDays := utils.MoodTagFrequencies(negativeDays)
 
 	// Clinical Days
-	clinicalDays := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
+	clinicalDays, err := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get clinical days: %w", err)
+	}
 	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, clinicalDays); err != nil {
 		return nil, fmt.Errorf("failed to add sleep logs to clinical days: %w", err)
 	}
@@ -110,7 +134,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	mtfClinicalDays := utils.MoodTagFrequencies(clinicalDays)
 
 	// Positive Streaks
-	positiveStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
+	positiveStreaks, err := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get positive streaks: %w", err)
+	}
 	for _, streak := range positiveStreaks {
 		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
 			return nil, fmt.Errorf("failed to add sleep logs to positive streak: %w", err)
@@ -121,7 +148,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	}
 
 	// Neutral Streaks
-	neutralStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
+	neutralStreaks, err := service.moodLogRepository.Streaks(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get neutral streaks: %w", err)
+	}
 	for _, streak := range neutralStreaks {
 		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
 			return nil, fmt.Errorf("failed to add sleep logs to neutral streak: %w", err)
@@ -132,7 +162,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	}
 
 	// Negative Streaks
-	negativeStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
+	negativeStreaks, err := service.moodLogRepository.Streaks(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get negative streaks: %w", err)
+	}
 	for _, streak := range negativeStreaks {
 		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
 			return nil, fmt.Errorf("failed to add sleep logs to negative streak: %w", err)
@@ -143,7 +176,10 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	}
 
 	// Clinical Streaks
-	clinicalStreaks := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
+	clinicalStreaks, err := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get clinical streaks: %w", err)
+	}
 	for _, streak := range clinicalStreaks {
 		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
 			return nil, fmt.Errorf("failed to add sleep logs to clinical streak: %w", err)

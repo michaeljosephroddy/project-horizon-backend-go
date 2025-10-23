@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"fmt"
-	"log"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
 )
@@ -23,36 +22,38 @@ func NewMoodLogRepository(dbConnection *sql.DB) *MoodLogRepository {
 	}
 }
 
-func (mlr *MoodLogRepository) Streaks(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Streak {
+func (mlr *MoodLogRepository) Streaks(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) ([]models.Streak, error) {
 	query := fmt.Sprintf(streaksQuery, operator)
-	rows, queryErr := mlr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
-	if queryErr != nil {
-		panic(queryErr)
+	rows, err := mlr.db.Query(query, moodCategoryID, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query streaks: %w", err)
 	}
 	defer rows.Close()
 
 	var streaks []models.Streak
+
 	for rows.Next() {
 		var streak models.Streak
 		var startDateStr, endDateStr string
 
-		scanErr := rows.Scan(
+		err := rows.Scan(
 			&startDateStr,
 			&endDateStr,
 			&streak.NumDays,
 		)
-		if scanErr != nil {
-			panic(scanErr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan streak row: %w", err)
 		}
 
 		// Parse the date strings into time.Time
-		parsedStartDate, err := time.Parse("2006-01-02", startDateStr)
+		parsedStartDate, err := time.Parse(dateLayout, startDateStr)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("failed to parse streak start date: %w", err)
 		}
-		parsedEndDate, err := time.Parse("2006-01-02", endDateStr)
+
+		parsedEndDate, err := time.Parse(dateLayout, endDateStr)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("failed to parse streak end date: %w", err)
 		}
 
 		streak.StartDate = parsedStartDate
@@ -61,27 +62,33 @@ func (mlr *MoodLogRepository) Streaks(userID string, startDate time.Time, endDat
 		streaks = append(streaks, streak)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating streak rows: %w", err)
+	}
+
 	for i := 0; i < len(streaks); i++ {
-		streakDays := mlr.Days(userID, streaks[i].StartDate, streaks[i].EndDate, operator, moodRating, moodCategoryID, targetPercentage)
+		streakDays, err := mlr.Days(userID, streaks[i].StartDate, streaks[i].EndDate, operator, moodRating, moodCategoryID, targetPercentage)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get days for streak: %w", err)
+		}
 		streaks[i].Days = append(streaks[i].Days, streakDays...)
 	}
 
 	if streaks == nil {
-		return make([]models.Streak, 0)
+		return make([]models.Streak, 0), nil
 	}
-	return streaks
+
+	return streaks, nil
 }
 
-func (mlr *MoodLogRepository) Days(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) []models.Day {
+func (mlr *MoodLogRepository) Days(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) ([]models.Day, error) {
 	// Build the query with the operator
 	query := fmt.Sprintf(daysQuery, operator)
 
 	// Execute with parameters in correct order
-	rows, queryErr := mlr.db.Query(query, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
-	if queryErr != nil {
-		log.Printf("Query error: %v\nQuery: %s\nParams: %v, %v, %v, %v, %v, %v",
-			queryErr, query, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
-		panic(queryErr)
+	rows, err := mlr.db.Query(query, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query days: %w", err)
 	}
 	defer rows.Close()
 
@@ -100,7 +107,7 @@ func (mlr *MoodLogRepository) Days(userID string, startDate time.Time, endDate t
 		var dailyTotalCount int
 		var dailyTargetPercentage float64
 
-		scanErr := rows.Scan(
+		err := rows.Scan(
 			&dateStr,
 			&createdAtStr,
 			&moodLogID,
@@ -113,25 +120,23 @@ func (mlr *MoodLogRepository) Days(userID string, startDate time.Time, endDate t
 			&dailyTotalCount,
 			&dailyTargetPercentage,
 		)
-		if scanErr != nil {
-			panic(scanErr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan day row: %w", err)
 		}
 
 		// Parse the date string to time.Time
-		parsedDate, dateParseErr := time.Parse("2006-01-02", dateStr)
-		if dateParseErr != nil {
-			log.Printf("Error parsing date %s: %v", dateStr, dateParseErr)
-			panic(dateParseErr)
+		parsedDate, err := time.Parse(dateLayout, dateStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse date: %w", err)
 		}
 
 		// Parse the createdAt string to time.Time
-		createdAt, createdAtParseErr := time.Parse(time.RFC3339, createdAtStr)
-		if createdAtParseErr != nil {
+		createdAt, err := time.Parse(time.RFC3339, createdAtStr)
+		if err != nil {
 			// Try alternative format if RFC3339 fails
-			createdAt, createdAtParseErr = time.Parse("2006-01-02 15:04:05", createdAtStr)
-			if createdAtParseErr != nil {
-				log.Printf("Error parsing createdAt %s: %v", createdAtStr, createdAtParseErr)
-				panic(createdAtParseErr)
+			createdAt, err = time.Parse(dateTimeLayout, createdAtStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse created_at: %w", err)
 			}
 		}
 
@@ -171,6 +176,10 @@ func (mlr *MoodLogRepository) Days(userID string, startDate time.Time, endDate t
 		resultsByDate[dateStr].MoodLogs = append(resultsByDate[dateStr].MoodLogs, entry)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating day rows: %w", err)
+	}
+
 	days := make([]models.Day, 0, len(resultsByDate))
 	for _, day := range resultsByDate {
 		days = append(days, *day)
@@ -181,38 +190,41 @@ func (mlr *MoodLogRepository) Days(userID string, startDate time.Time, endDate t
 		return days[i].Date.After(days[j].Date)
 	})
 
-	return days
+	return days, nil
 }
 
-func (mlr *MoodLogRepository) StandardDeviation(userID string, startDate time.Time, endDate time.Time) float64 {
-
-	rows, queryErr := mlr.db.Query(stdDevQuery, userID, startDate, endDate)
-	if queryErr != nil {
-		panic(queryErr)
+func (mlr *MoodLogRepository) StandardDeviation(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+	rows, err := mlr.db.Query(stdDevQuery, userID, startDate, endDate)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query mood standard deviation: %w", err)
 	}
 	defer rows.Close()
 
 	var standardDeviation sql.NullFloat64
 
 	for rows.Next() {
-		scanErr := rows.Scan(&standardDeviation)
-		if scanErr != nil {
-			panic(scanErr)
+		err := rows.Scan(&standardDeviation)
+		if err != nil {
+			return 0, fmt.Errorf("failed to scan mood standard deviation: %w", err)
 		}
 	}
 
-	if !standardDeviation.Valid {
-		return 0.0
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("error iterating mood standard deviation rows: %w", err)
 	}
 
-	return standardDeviation.Float64
+	if !standardDeviation.Valid {
+		return 0.0, nil
+	}
+
+	return standardDeviation.Float64, nil
 }
 
-func (mlr *MoodLogRepository) MovingAverages(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) []models.MovingAverage {
+func (mlr *MoodLogRepository) MovingAverages(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]models.MovingAverage, error) {
 	query := fmt.Sprintf(moodMovingAvgQuery, numDaysPreceding)
-	rows, queryErr := mlr.db.Query(query, userID, startDate, endDate)
-	if queryErr != nil {
-		panic(queryErr)
+	rows, err := mlr.db.Query(query, userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query moving averages: %w", err)
 	}
 	defer rows.Close()
 
@@ -222,16 +234,15 @@ func (mlr *MoodLogRepository) MovingAverages(userID string, startDate time.Time,
 		var dateStr string
 		var movingAvg float64
 
-		scanErr := rows.Scan(&dateStr, &movingAvg)
-		if scanErr != nil {
-			panic(scanErr)
+		err := rows.Scan(&dateStr, &movingAvg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan moving average row: %w", err)
 		}
 
 		// Parse the date string to time.Time
-		parsedDate, parseErr := time.Parse("2006-01-02", dateStr)
-		if parseErr != nil {
-			log.Printf("Error parsing date %s: %v", dateStr, parseErr)
-			panic(parseErr)
+		parsedDate, err := time.Parse(dateLayout, dateStr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse moving average date: %w", err)
 		}
 
 		movingAverages = append(movingAverages, models.MovingAverage{
@@ -240,68 +251,80 @@ func (mlr *MoodLogRepository) MovingAverages(userID string, startDate time.Time,
 		})
 	}
 
-	if movingAverages == nil {
-		return make([]models.MovingAverage, 0)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating moving average rows: %w", err)
 	}
 
-	return movingAverages
+	if movingAverages == nil {
+		return make([]models.MovingAverage, 0), nil
+	}
+
+	return movingAverages, nil
 }
 
-func (mlr *MoodLogRepository) MoodLogs(userID string, startDate time.Time, endDate time.Time) []models.MoodLog {
-
+func (mlr *MoodLogRepository) MoodLogs(userID string, startDate time.Time, endDate time.Time) ([]models.MoodLog, error) {
 	rows, err := mlr.db.Query(journalEntriesQuery, userID, startDate, endDate)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to query mood logs: %w", err)
 	}
 	defer rows.Close()
 
 	var moodLogs []models.MoodLog
-	var moodLog models.MoodLog
 
 	for rows.Next() {
-		scanErr := rows.Scan(
+		var moodLog models.MoodLog
+
+		err := rows.Scan(
 			&moodLog.MoodLogID,
 			&moodLog.UserID,
 			&moodLog.MoodRating,
 			&moodLog.Note,
 			&moodLog.CreatedAt,
 		)
-		if scanErr != nil {
-			panic(scanErr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan mood log row: %w", err)
 		}
 
 		moodLogs = append(moodLogs, moodLog)
 	}
 
-	if moodLogs == nil {
-		return make([]models.MoodLog, 0)
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating mood log rows: %w", err)
 	}
 
-	return moodLogs
+	if moodLogs == nil {
+		return make([]models.MoodLog, 0), nil
+	}
+
+	return moodLogs, nil
 }
 
-func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate time.Time, endDate time.Time) []models.TagStat {
-
-	rows, queryErr := mlr.db.Query(moodTagFrequenciesQuery, userID, startDate, endDate)
-	if queryErr != nil {
-		panic(queryErr)
+func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate time.Time, endDate time.Time) ([]models.TagStat, error) {
+	rows, err := mlr.db.Query(moodTagFrequenciesQuery, userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query mood tag frequencies: %w", err)
 	}
 	defer rows.Close()
 
-	var moodTagStat models.TagStat
 	var moodTagFrequencies []models.TagStat
 
 	for rows.Next() {
-		scanErr := rows.Scan(
+		var moodTagStat models.TagStat
+
+		err := rows.Scan(
 			&moodTagStat.TagName,
 			&moodTagStat.Count,
 			&moodTagStat.Percentage,
 		)
-		if scanErr != nil {
-			panic(scanErr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan mood tag frequency row: %w", err)
 		}
 
 		moodTagFrequencies = append(moodTagFrequencies, moodTagStat)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating mood tag frequency rows: %w", err)
 	}
 
 	slices.SortFunc(moodTagFrequencies, func(a, b models.TagStat) int {
@@ -309,31 +332,35 @@ func (mlr *MoodLogRepository) MoodTagFrequencies(userID string, startDate time.T
 	})
 
 	if moodTagFrequencies == nil {
-		return make([]models.TagStat, 0)
+		return make([]models.TagStat, 0), nil
 	}
 
-	return moodTagFrequencies
+	return moodTagFrequencies, nil
 }
 
-func (mlr *MoodLogRepository) AvgMoodRating(userID string, startDate time.Time, endDate time.Time) float64 {
-
-	rows, queryErr := mlr.db.Query(AvgMoodRatingQuery, userID, startDate, endDate)
-	if queryErr != nil {
-		panic(queryErr)
+func (mlr *MoodLogRepository) AvgMoodRating(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+	rows, err := mlr.db.Query(AvgMoodRatingQuery, userID, startDate, endDate)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query average mood rating: %w", err)
 	}
 	defer rows.Close()
 
 	var avgMoodRatingPeriod sql.NullFloat64
+
 	for rows.Next() {
-		scanErr := rows.Scan(&avgMoodRatingPeriod)
-		if scanErr != nil {
-			panic(scanErr)
+		err := rows.Scan(&avgMoodRatingPeriod)
+		if err != nil {
+			return 0, fmt.Errorf("failed to scan average mood rating: %w", err)
 		}
 	}
 
-	if !avgMoodRatingPeriod.Valid {
-		return 0.0
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("error iterating average mood rating rows: %w", err)
 	}
 
-	return avgMoodRatingPeriod.Float64
+	if !avgMoodRatingPeriod.Valid {
+		return 0.0, nil
+	}
+
+	return avgMoodRatingPeriod.Float64, nil
 }
