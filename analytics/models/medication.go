@@ -19,3 +19,12 @@ type Medication struct {
 	Name         string `json:"name"`
 	Dosage       string `json:"dosage"`
 }
+
+// TODO finish this
+type MedicationMetric struct {
+	UserID      string       `json:"userID"`
+	Granularity string       `json:"granularity"`
+	StartDate   time.Time    `json:"startDate"`
+	EndDate     time.Time    `json:"endDate"`
+	CurrentMeds []Medication `json:"currentMeds"`
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics"
@@ -10,7 +11,10 @@ import (
 
 func main() {
 
-	dbConnection := database.NewDatabaseConnection()
+	dbConnection, err := database.NewDatabaseConnection()
+	if err != nil {
+		panic(fmt.Sprintf("Database connection failed: %v", err))
+	}
 	defer dbConnection.Close()
 
 	moodLogRepository := database.NewMoodLogRepository(dbConnection)

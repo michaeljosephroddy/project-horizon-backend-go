@@ -16,9 +16,9 @@ type AnalyticsHandler struct {
 }
 
 const (
-	analyticsUsersMood  = `^/analytics/users/([0-9]+)/mood$`
-	analyticsUsersSleep = `^/analytics/users/([0-9]+)/sleep$`
-	// analyticsUsersMedication = `^/analytics/users/([0-9]+)/medication$`
+	analyticsUsersMood       = `^/analytics/users/([0-9]+)/mood$`
+	analyticsUsersSleep      = `^/analytics/users/([0-9]+)/sleep$`
+	analyticsUsersMedication = `^/analytics/users/([0-9]+)/medication$`
 )
 
 func NewAnalyticsHandler(analyticsService *analyticsService) *AnalyticsHandler {
@@ -120,4 +120,9 @@ func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time
 	current.SleepDiffs = diffs
 
 	return current, nil
+}
+
+// TODO implement this func
+func (handler *AnalyticsHandler) medicationMetrics(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
+	return &models.MedicationMetric{}, fmt.Errorf("todo")
 }
