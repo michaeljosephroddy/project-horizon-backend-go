@@ -15,4 +15,4 @@ Compares current data with previous periods.
 
 ## Run Locally
 go mod tidy
-go run main.gorovides JSON responses for use in dashboards or mobile app
+go run main.go
