@@ -11,17 +11,14 @@ type Router struct {
 }
 
 func NewRouter(handler *analytics.AnalyticsHandler) *Router {
-	return &Router{
-		analyticsHandler: handler,
-	}
+	return &Router{analyticsHandler: handler}
 }
 
-func (r *Router) RouteRequests(writer http.ResponseWriter, request *http.Request) {
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch {
-	case strings.HasPrefix(request.URL.Path, "/analytics"):
-		r.analyticsHandler.ProcessRequest(writer, request)
+	case strings.HasPrefix(req.URL.Path, "/analytics"):
+		r.analyticsHandler.ProcessRequest(w, req)
 	default:
-		writer.WriteHeader(http.StatusNotFound)
-		writer.Write([]byte("resouce not found"))
+		http.NotFound(w, req)
 	}
 }

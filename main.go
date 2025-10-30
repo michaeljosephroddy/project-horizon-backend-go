@@ -25,7 +25,5 @@ func main() {
 	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
 
 	r := router.NewRouter(analyticsHandler)
-
-	http.HandleFunc("/", r.RouteRequests)
-	http.ListenAndServe(":9095", nil)
+	http.ListenAndServe(":9095", r)
 }
