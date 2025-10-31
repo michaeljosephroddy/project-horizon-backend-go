@@ -53,6 +53,18 @@ func (handler *AnalyticsHandler) ProcessRequest(writer http.ResponseWriter, requ
 			return
 		}
 		handler.writeJSONResponse(writer, sleepMetrics)
+	case common_utils.MatchURL(analyticsUsersMedication, request.URL.Path):
+		userID, startDate, endDate, err := handler.extractRequestParams(request)
+		if err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+			return
+		}
+		medicationMetrics, err := handler.medicationMetrics(userID, startDate, endDate)
+		if err != nil {
+			http.Error(writer, "failed to retrieve medication metrics", http.StatusInternalServerError)
+			return
+		}
+		handler.writeJSONResponse(writer, medicationMetrics)
 	default:
 		http.Error(writer, "404 path not found", http.StatusNotFound)
 	}
@@ -124,5 +136,5 @@ func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time
 
 // TODO implement this func
 func (handler *AnalyticsHandler) medicationMetrics(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
-	return &models.MedicationMetric{}, fmt.Errorf("todo")
+	return &models.MedicationMetric{}, nil 
 }
