@@ -26,6 +26,8 @@ type SleepMetric struct {
 	StdDeviation         float64   `json:"stdDeviation"`
 	Stability            string    `json:"stability"`
 	SleepQualityTagStats []TagStat `json:"sleepQualityTagStats"`
+	BestSleepDay         string    `json:"bestSleepDay"`
+	WorstSleepDay        string    `json:"worstSleepDay"`
 	SleepDiffs           SleepDiff `json:"sleepDiffs"`
 }
 
@@ -40,4 +42,11 @@ type SleepDiff struct {
 type ShiftChange struct {
 	Description string  `json:"description"` // "increasing → stable"
 	Change      float64 `json:"change"`
+}
+
+type DayOfWeekSleepPattern struct {
+	DayOfWeek     string  `json:"dayOfWeek"`     // "Monday", "Tuesday", etc.
+	DayNumber     int     `json:"dayNumber"`     // 1=Sunday, 2=Monday, etc. (MySQL DAYOFWEEK)
+	AvgSleepHours float64 `json:"avgSleepHours"` // Average hours slept on this day
+	TotalEntries  int     `json:"totalEntries"`  // Number of logs for this day
 }

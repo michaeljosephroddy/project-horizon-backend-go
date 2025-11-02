@@ -223,3 +223,39 @@ func (slr *SleepLogRepository) SleepLogs(userID string, startDate time.Time, end
 
 	return sleepLogs, nil
 }
+
+func (slr *SleepLogRepository) DayOfWeekSleepPatterns(userID string, startDate time.Time, endDate time.Time) ([]models.DayOfWeekSleepPattern, error) {
+	rows, err := slr.db.Query(dayOfWeekSleepPatternsQuery, userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query day-of-week sleep patterns: %w", err)
+	}
+	defer rows.Close()
+
+	var patterns []models.DayOfWeekSleepPattern
+
+	for rows.Next() {
+		var pattern models.DayOfWeekSleepPattern
+
+		err := rows.Scan(
+			&pattern.DayOfWeek,
+			&pattern.DayNumber,
+			&pattern.AvgSleepHours,
+			&pattern.TotalEntries,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan day-of-week pattern row: %w", err)
+		}
+
+		patterns = append(patterns, pattern)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating day-of-week pattern rows: %w", err)
+	}
+
+	if patterns == nil {
+		return make([]models.DayOfWeekSleepPattern, 0), nil
+	}
+
+	return patterns, nil
+}

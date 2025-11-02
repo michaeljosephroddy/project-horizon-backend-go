@@ -313,7 +313,6 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
-
 	movingAverages, err := service.sleepLogRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get moving average sleep: %w", err)
@@ -337,13 +336,38 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 		minModerateSleep = 0.5 // 30 mins
 		minVolatileSleep = 1.5 // 90 mins
 	)
-
 	stability := utils.StdDeviation(standardDeviation, noData, minModerateSleep, minVolatileSleep)
+
 	granularity := utils.Granularity(numDays)
 
 	topSleepQualityTags, err := service.sleepLogRepository.SleepQualityTagStat(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sleep quality tag stats: %w", err)
+	}
+
+	// Get day-of-week patterns
+	dayOfWeekPatterns, err := service.sleepLogRepository.DayOfWeekSleepPatterns(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get day-of-week sleep patterns: %w", err)
+	}
+
+	// Calculate best/worst days by duration only
+	var bestSleepDay, worstSleepDay string
+
+	if len(dayOfWeekPatterns) > 0 {
+		maxHours := -1.0
+		minHours := 999.0
+
+		for _, pattern := range dayOfWeekPatterns {
+			if pattern.AvgSleepHours > maxHours {
+				maxHours = pattern.AvgSleepHours
+				bestSleepDay = pattern.DayOfWeek
+			}
+			if pattern.AvgSleepHours < minHours {
+				minHours = pattern.AvgSleepHours
+				worstSleepDay = pattern.DayOfWeek
+			}
+		}
 	}
 
 	sleepMetrics := &models.SleepMetric{
@@ -357,6 +381,8 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 		StdDeviation:         standardDeviation,
 		Stability:            stability,
 		SleepQualityTagStats: topSleepQualityTags,
+		BestSleepDay:         bestSleepDay,
+		WorstSleepDay:        worstSleepDay,
 		SleepDiffs:           models.SleepDiff{},
 	}
 

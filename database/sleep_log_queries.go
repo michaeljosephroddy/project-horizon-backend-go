@@ -63,3 +63,14 @@ FROM   sleep_log sl
 WHERE  sl.user_id = ?
        AND sl.sleep_date BETWEEN ? AND ?
 ORDER  BY sl.sleep_date;`
+
+var dayOfWeekSleepPatternsQuery = `SELECT
+    DAYNAME(sleep_date) AS day_of_week,
+    DAYOFWEEK(sleep_date) AS day_number,
+    AVG(hours_slept) AS avg_sleep_hours,
+    COUNT(*) AS total_entries
+FROM sleep_log
+WHERE user_id = ?
+    AND sleep_date BETWEEN ? AND ?
+GROUP BY day_of_week, day_number
+ORDER BY day_number;`
