@@ -380,9 +380,9 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 		SleepTrend:           sleepTrend,
 		StdDeviation:         standardDeviation,
 		Stability:            stability,
-		SleepQualityTagStats: topSleepQualityTags,
 		BestSleepDay:         bestSleepDay,
 		WorstSleepDay:        worstSleepDay,
+		SleepQualityTagStats: topSleepQualityTags,
 		SleepDiffs:           models.SleepDiff{},
 	}
 
@@ -395,10 +395,20 @@ func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *model
 		avgSleepHours.PercentChange = utils.PercentChange(currentPeriod.AvgSleepHours, previousPeriod.AvgSleepHours)
 	}
 
+	var movingAvg models.MetricChange
+	if previousPeriod.MovingAvg > 0 {
+		movingAvg.PercentChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
+	}
+
 	var trend models.ShiftChange
 	if previousPeriod.SleepTrend != "" {
 		trend.Description = fmt.Sprintf("%s -> %s", previousPeriod.SleepTrend, currentPeriod.SleepTrend)
 		trend.Change = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
+	}
+
+	var stdDeviation models.MetricChange
+	if previousPeriod.StdDeviation > 0 {
+		stdDeviation.PercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
 	}
 
 	var stability models.MetricChange
@@ -407,6 +417,16 @@ func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *model
 	}
 	if previousPeriod.StdDeviation > 0 {
 		stability.PercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
+	}
+
+	var bestSleepDay models.MetricChange
+	if previousPeriod.BestSleepDay != "" {
+		bestSleepDay.Shift = fmt.Sprintf("%s -> %s", previousPeriod.BestSleepDay, currentPeriod.BestSleepDay)
+	}
+
+	var worstSleepDay models.MetricChange
+	if previousPeriod.WorstSleepDay != "" {
+		worstSleepDay.Shift = fmt.Sprintf("%s -> %s", previousPeriod.WorstSleepDay, currentPeriod.WorstSleepDay)
 	}
 
 	const moodTagStatsIndex = 0
@@ -422,8 +442,12 @@ func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *model
 
 	sleepDiffs := models.SleepDiff{
 		AvgSleepHours: avgSleepHours,
+		MovingAvg:     movingAvg,
 		Trend:         trend,
+		StdDeviation:  stdDeviation,
 		Stability:     stability,
+		BestSleepDay:  bestSleepDay,
+		WorstSleepDay: worstSleepDay,
 		TopQualityTag: topQualityTag,
 	}
 
