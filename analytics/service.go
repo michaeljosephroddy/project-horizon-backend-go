@@ -453,3 +453,8 @@ func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *model
 
 	return sleepDiffs
 }
+
+// TODO implement this func
+func (service *analyticsService) analyzeMedication(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
+	return &models.MedicationMetric{}, nil 
+}

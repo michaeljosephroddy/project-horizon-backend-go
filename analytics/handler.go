@@ -136,5 +136,10 @@ func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time
 
 // TODO implement this func
 func (handler *AnalyticsHandler) medicationMetrics(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
-	return &models.MedicationMetric{}, nil 
+	current, err := handler.analyticsService.analyzeMedication(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze current medication period: %w", err)
+	}
+
+	return current, nil
 }
