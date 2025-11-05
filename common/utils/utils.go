@@ -22,6 +22,7 @@ func GetUserIDFromPath(path string) (string, error) {
 
 	return matches[1], nil
 }
+
 func ParseDates(a string, b string) (time.Time, time.Time) {
 	const layout = "2006-01-02"
 	aParsed, _ := time.Parse(layout, a)
