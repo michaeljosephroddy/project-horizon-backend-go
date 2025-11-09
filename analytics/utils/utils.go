@@ -143,6 +143,9 @@ func NumDaysBetween(startDate time.Time, endDate time.Time) int {
 }
 
 func PercentChange(a, b float64) float64 {
+	if b == 0 {
+		return 0
+	}
 	return ((a - b) / b) * 100
 }
 

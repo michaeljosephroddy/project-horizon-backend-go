@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
@@ -129,8 +130,19 @@ func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time
 func (handler *AnalyticsHandler) medicationMetrics(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
 	current, err := handler.analyticsService.analyzeMedication(userID, startDate, endDate)
 	if err != nil {
+		log.Println("somehting wrong here %w", err)	
 		return nil, fmt.Errorf("failed to analyze current medication period: %w", err)
 	}
+
+	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
+	previous, err := handler.analyticsService.analyzeMedication(userID, previousStart, previousEnd)
+	if err != nil {
+		log.Println("somehting wrong here as well %w", err)	
+		return nil, fmt.Errorf("failed to analyze previous medication period: %w", err)
+	}
+
+	diffs := handler.analyticsService.medicationDiffs(current, previous)
+	current.MedicationDiffs = diffs
 
 	return current, nil
 }

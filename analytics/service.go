@@ -456,13 +456,76 @@ func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *model
 
 // TODO implement this func
 func (service *analyticsService) analyzeMedication(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
-	medicationLogs, err := service.medicationLogRepository.MedicationLogs(userID, startDate, endDate)
+	numDays := utils.NumDaysBetween(startDate, endDate)
+	granularity := utils.Granularity(numDays)
+
+	// Get overview statistics
+	totalLogs, adherenceRate, avgLogsPerDay, avgMedsPerLog, err := service.medicationLogRepository.OverviewStats(userID, startDate, endDate)
 	if err != nil {
-		return &models.MedicationMetric{}, fmt.Errorf("failed to get medication logs: %w", err)
+		return nil, fmt.Errorf("failed to get overview stats: %w", err)
+	}
+
+	// Get detailed medication statistics
+	medicationStats, err := service.medicationLogRepository.MedicationDetailedStats(userID, startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get medication stats: %w", err)
 	}
 
 	medicationMetric := &models.MedicationMetric{
-		MedicationLogs: medicationLogs,
+		UserID:             userID,
+		Granularity:        granularity,
+		StartDate:          startDate,
+		EndDate:            endDate,
+		TotalLogs:          totalLogs,
+		AdherenceRate:      adherenceRate,
+		AvgLogsPerDay:      avgLogsPerDay,
+		AvgMedsPerLog:      avgMedsPerLog,
+		MedicationStats:    medicationStats,
+		MedicationDiffs:    models.MedicationDiff{}, // Will be populated if comparing
 	}
-	return medicationMetric, nil 
+
+	return medicationMetric, nil
+}
+
+func (service *analyticsService) medicationDiffs(currentPeriod, previousPeriod *models.MedicationMetric) models.MedicationDiff {
+	diff := models.MedicationDiff{
+		TotalLogs: models.MetricChange{
+			Current:       float64(currentPeriod.TotalLogs),
+			Previous:      float64(previousPeriod.TotalLogs),
+			Change:        float64(currentPeriod.TotalLogs - previousPeriod.TotalLogs),
+			PercentChange: utils.PercentChange(float64(currentPeriod.TotalLogs), float64(previousPeriod.TotalLogs)),
+		},
+		AdherenceRate: models.MetricChange{
+			Current:       currentPeriod.AdherenceRate,
+			Previous:      previousPeriod.AdherenceRate,
+			Change:        currentPeriod.AdherenceRate - previousPeriod.AdherenceRate,
+			PercentChange: utils.PercentChange(currentPeriod.AdherenceRate, previousPeriod.AdherenceRate),
+		},
+		AvgLogsPerDay: models.MetricChange{
+			Current:       currentPeriod.AvgLogsPerDay,
+			Previous:      previousPeriod.AvgLogsPerDay,
+			Change:        currentPeriod.AvgLogsPerDay - previousPeriod.AvgLogsPerDay,
+			PercentChange: utils.PercentChange(currentPeriod.AvgLogsPerDay, previousPeriod.AvgLogsPerDay),
+		},
+		AvgMedsPerLog: models.MetricChange{
+			Current:       currentPeriod.AvgMedsPerLog,
+			Previous:      previousPeriod.AvgMedsPerLog,
+			Change:        currentPeriod.AvgMedsPerLog - previousPeriod.AvgMedsPerLog,
+			PercentChange: utils.PercentChange(currentPeriod.AvgMedsPerLog, previousPeriod.AvgMedsPerLog),
+		},
+	}
+
+	// Map previous period medications by ID
+	prevMedMap := make(map[int]models.MedicationStats)
+	for _, med := range previousPeriod.MedicationStats {
+		prevMedMap[med.MedicationID] = med
+	}
+
+	// Map current period medications by ID
+	currMedMap := make(map[int]models.MedicationStats)
+	for _, med := range currentPeriod.MedicationStats {
+		currMedMap[med.MedicationID] = med
+	}
+
+	return diff
 }

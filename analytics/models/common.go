@@ -29,6 +29,17 @@ type TagStat struct {
 }
 
 type MetricChange struct {
+	Current       float64 `json:"current"`
+	Previous      float64 `json:"previous"`
+	Change        float64 `json:"change"`
 	PercentChange float64 `json:"percentChange"`
 	Shift         string  `json:"shift"`
+}
+
+type TimingStats struct {
+	AvgTime       string
+	StdDevMinutes float64
+	Description   string
+	EarliestTime  string
+	LatestTime    string
 }
