@@ -1,24 +1,16 @@
 package router
 
 import (
+	"github.com/gin-gonic/gin"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics"
-	"net/http"
-	"strings"
 )
 
-type Router struct {
-	analyticsHandler *analytics.AnalyticsHandler
-}
-
-func NewRouter(handler *analytics.AnalyticsHandler) *Router {
-	return &Router{analyticsHandler: handler}
-}
-
-func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	switch {
-	case strings.HasPrefix(req.URL.Path, "/analytics"):
-		r.analyticsHandler.ProcessRequest(w, req)
-	default:
-		http.NotFound(w, req)
+func SetupRoutes(r *gin.Engine, analyticsHandler *analytics.AnalyticsHandler) {
+	// Analytics routes group
+	analyticsGroup := r.Group("/analytics")
+	{
+		analyticsGroup.GET("/users/:userID/mood", analyticsHandler.GetMoodMetrics)
+		analyticsGroup.GET("/users/:userID/sleep", analyticsHandler.GetSleepMetrics)
+		analyticsGroup.GET("/users/:userID/medication", analyticsHandler.GetMedicationMetrics)
 	}
 }
