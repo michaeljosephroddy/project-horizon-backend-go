@@ -15,11 +15,11 @@ type MoodMetric struct {
 	StdDeviation float64 `json:"stdDeviation"`
 	Stability    string  `json:"stability"`
 	// Overall tag statistics
-	TagStats             []TagStat `json:"tagStats"`
-	PositiveDaysTagStats []TagStat `json:"positiveDaysTagStats"`
-	NegativeDaysTagStats []TagStat `json:"negativeDaysTagStats"`
-	NeutralDaysTagStats  []TagStat `json:"neutralDaysTagStats"`
-	ClinicalDaysTagStats []TagStat `json:"clinicalDaysTagStats"`
+	TagStats           []TagStat `json:"tagStats"`
+	TopTagPositiveDays TagStat   `json:"topTagPositiveDays"`
+	TopTagNegativeDays TagStat   `json:"topTagNegativeDays"`
+	TopTagNeutralDays  TagStat   `json:"topTagNeutralDays"`
+	TopTagClinicalDays TagStat   `json:"topTagClinicalDays"`
 }
 
 // Mood Log

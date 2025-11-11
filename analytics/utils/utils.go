@@ -11,6 +11,14 @@ import (
 	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
 )
 
+func TopTagStat(data []models.TagStat) models.TagStat {
+ if len(data) == 0 {
+        return models.TagStat{} 
+    }
+    return data[0]
+
+}
+
 // TODO make these package private if not used outside analytics package
 func MoodTagFrequencies(days []models.Day) []models.TagStat {
 	var tags []string
