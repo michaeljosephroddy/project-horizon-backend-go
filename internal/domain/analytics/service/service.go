@@ -1,36 +1,32 @@
-package analytics
+package service
 
 import (
 	"fmt"
 	"strconv"
 	"time"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/utils"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/utils"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/models"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/repository"
 )
 
-type analyticsService struct {
-	moodLogRepository       *database.MoodLogRepository
-	sleepLogRepository      *database.SleepLogRepository
-	medicationLogRepository *database.MedicationLogRepository
+type AnalyticsService struct {
+	analyticsRepository *repository.AnalyticsRepository
 }
 
-func NewAnalyticsService(moodLogRepository *database.MoodLogRepository, sleepLogRepository *database.SleepLogRepository, medicationLogRepository *database.MedicationLogRepository) *analyticsService {
-	return &analyticsService{
-		moodLogRepository:       moodLogRepository,
-		sleepLogRepository:      sleepLogRepository,
-		medicationLogRepository: medicationLogRepository,
+func NewAnalyticsService(analyticsRepository *repository.AnalyticsRepository) *AnalyticsService {
+	return &AnalyticsService{
+		analyticsRepository: analyticsRepository,
 	}
 }
 
-func (service *analyticsService) analyzeMood(userID string, startDate time.Time, endDate time.Time) (*models.MoodMetric, error) {
+func (service *AnalyticsService) AnalyzeMood(userID string, startDate time.Time, endDate time.Time) (*models.MoodMetric, error) {
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
 
-	movingAverages, err := service.moodLogRepository.MovingAverages(userID, startDate, endDate, numDaysPreceding)
+	movingAverages, err := service.analyticsRepository.MovingAverages(userID, startDate, endDate, numDaysPreceding)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get moving averages: %w", err)
 	}
@@ -43,7 +39,7 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 
 	moodTrend := utils.Trend(movingAverages)
 
-	standardDeviation, err := service.moodLogRepository.StandardDeviation(userID, startDate, endDate)
+	standardDeviation, err := service.analyticsRepository.StandardDeviation(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get standard deviation: %w", err)
 	}
@@ -56,12 +52,12 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 
 	stability := utils.StdDeviation(standardDeviation, noData, minModerateMood, minVolatileMood)
 
-	avgMoodRating, err := service.moodLogRepository.AvgMoodRating(userID, startDate, endDate)
+	avgMoodRating, err := service.analyticsRepository.AvgMoodRating(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get average mood rating: %w", err)
 	}
 
-	mtfPeriod, err := service.moodLogRepository.MoodTagFrequencies(userID, startDate, endDate)
+	mtfPeriod, err := service.analyticsRepository.MoodTagFrequencies(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mood tag frequencies: %w", err)
 	}
@@ -82,28 +78,28 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	)
 
 	// Positive Days
-	positiveDays, err := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
+	positiveDays, err := service.analyticsRepository.Days(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get positive days: %w", err)
 	}
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
 	// Neutral Days
-	neutralDays, err := service.moodLogRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
+	neutralDays, err := service.analyticsRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get neutral days: %w", err)
 	}
 	mtfNeutralDays := utils.MoodTagFrequencies(neutralDays)
 
 	// Negative Days
-	negativeDays, err := service.moodLogRepository.Days(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
+	negativeDays, err := service.analyticsRepository.Days(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get negative days: %w", err)
 	}
 	mtfNegativeDays := utils.MoodTagFrequencies(negativeDays)
 
 	// Clinical Days
-	clinicalDays, err := service.moodLogRepository.Days(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
+	clinicalDays, err := service.analyticsRepository.Days(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get clinical days: %w", err)
 	}
@@ -131,15 +127,15 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	return moodMetrics, nil
 }
 
-func (service *analyticsService) analyzeSleep(userID string, startDate time.Time, endDate time.Time) (*models.SleepMetric, error) {
-	avgSleepHours, err := service.sleepLogRepository.AvgSleepHours(userID, startDate, endDate)
+func (service *AnalyticsService) AnalyzeSleep(userID string, startDate time.Time, endDate time.Time) (*models.SleepMetric, error) {
+	avgSleepHours, err := service.analyticsRepository.AvgSleepHours(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get average sleep hours: %w", err)
 	}
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
-	movingAverages, err := service.sleepLogRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
+	movingAverages, err := service.analyticsRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get moving average sleep: %w", err)
 	}
@@ -152,7 +148,7 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 
 	sleepTrend := utils.Trend(movingAverages)
 
-	standardDeviation, err := service.sleepLogRepository.StandardDeviation(userID, startDate, endDate)
+	standardDeviation, err := service.analyticsRepository.SleepStandardDeviation(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sleep standard deviation: %w", err)
 	}
@@ -166,13 +162,13 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 
 	granularity := utils.Granularity(numDays)
 
-	topSleepQualityTags, err := service.sleepLogRepository.SleepQualityTagStat(userID, startDate, endDate)
+	topSleepQualityTags, err := service.analyticsRepository.SleepQualityTagStat(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sleep quality tag stats: %w", err)
 	}
 
 	// Get day-of-week patterns
-	dayOfWeekPatterns, err := service.sleepLogRepository.DayOfWeekSleepPatterns(userID, startDate, endDate)
+	dayOfWeekPatterns, err := service.analyticsRepository.DayOfWeekSleepPatterns(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get day-of-week sleep patterns: %w", err)
 	}
@@ -215,18 +211,18 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 }
 
 // TODO implement this func
-func (service *analyticsService) analyzeMedication(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
+func (service *AnalyticsService) AnalyzeMedication(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	granularity := utils.Granularity(numDays)
 
 	// Get overview statistics
-	adherenceRate, err := service.medicationLogRepository.OverviewStats(userID, startDate, endDate)
+	adherenceRate, err := service.analyticsRepository.OverviewStats(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get overview stats: %w", err)
 	}
 
 	// Get detailed medication statistics
-	medicationStats, err := service.medicationLogRepository.MedicationDetailedStats(userID, startDate, endDate)
+	medicationStats, err := service.analyticsRepository.MedicationDetailedStats(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get medication stats: %w", err)
 	}

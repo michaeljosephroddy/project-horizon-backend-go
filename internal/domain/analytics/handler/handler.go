@@ -1,4 +1,4 @@
-package analytics
+package handler
 
 import (
 	"fmt"
@@ -6,14 +6,15 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	common_utils "github.com/michaeljosephroddy/project-horizon-backend-go/common/utils"
+	common_utils "github.com/michaeljosephroddy/project-horizon-backend-go/internal/common/utils"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/service"
 )
 
 type AnalyticsHandler struct {
-	analyticsService *analyticsService
+	analyticsService *service.AnalyticsService
 }
 
-func NewAnalyticsHandler(analyticsService *analyticsService) *AnalyticsHandler {
+func NewAnalyticsHandler(analyticsService *service.AnalyticsService) *AnalyticsHandler {
 	return &AnalyticsHandler{
 		analyticsService: analyticsService,
 	}
@@ -27,7 +28,7 @@ func (handler *AnalyticsHandler) GetMoodMetrics(c *gin.Context) {
 		return
 	}
 
-	moodMetrics, err := handler.analyticsService.analyzeMood(userID, startDate, endDate)
+	moodMetrics, err := handler.analyticsService.AnalyzeMood(userID, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve mood metrics"})
 		return
@@ -44,7 +45,7 @@ func (handler *AnalyticsHandler) GetSleepMetrics(c *gin.Context) {
 		return
 	}
 
-	sleepMetrics, err := handler.analyticsService.analyzeSleep(userID, startDate, endDate)
+	sleepMetrics, err := handler.analyticsService.AnalyzeSleep(userID, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve sleep metrics"})
 		return
@@ -61,7 +62,7 @@ func (handler *AnalyticsHandler) GetMedicationMetrics(c *gin.Context) {
 		return
 	}
 
-	medicationMetrics, err := handler.analyticsService.analyzeMedication(userID, startDate, endDate)
+	medicationMetrics, err := handler.analyticsService.AnalyzeMedication(userID, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve medication metrics"})
 		return

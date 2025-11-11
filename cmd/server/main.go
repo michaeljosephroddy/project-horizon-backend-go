@@ -5,9 +5,11 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/router"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/app/router"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/database"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/handler"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/repository"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/service"
 )
 
 func main() {
@@ -21,19 +23,17 @@ func main() {
 	defer dbConnection.Close()
 	log.Println("Database connected successfully")
 
-	moodLogRepository := database.NewMoodLogRepository(dbConnection)
-	sleepLogRepository := database.NewSleepLogRepository(dbConnection)
-	medicationLogRepository := database.NewMedicationLogRepository(dbConnection)
+	analyticsRepository := repository.NewAnalyticsRepository(dbConnection)
 
-	analyticsService := analytics.NewAnalyticsService(moodLogRepository, sleepLogRepository, medicationLogRepository)
-	analyticsHandler := analytics.NewAnalyticsHandler(analyticsService)
+	analyticsService := service.NewAnalyticsService(analyticsRepository)
+	analyticsHandler := handler.NewAnalyticsHandler(analyticsService)
 
 	// Create Gin router
 	r := gin.Default() // This includes logger & recovery middleware
-	
+
 	// Setup routes
 	router.SetupRoutes(r, analyticsHandler)
-	
+
 	log.Println("Routes registered, starting server on :9095...")
 
 	// Start server

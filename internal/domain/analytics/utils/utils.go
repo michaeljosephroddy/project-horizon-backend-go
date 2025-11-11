@@ -7,15 +7,15 @@ import (
 
 	"time"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/database"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/repository"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/models"
 )
 
 func TopTagStat(data []models.TagStat) models.TagStat {
- if len(data) == 0 {
-        return models.TagStat{} 
-    }
-    return data[0]
+	if len(data) == 0 {
+		return models.TagStat{}
+	}
+	return data[0]
 
 }
 
@@ -188,7 +188,7 @@ func StdDeviation(standardDeviation float64, noData float64, minModerateVal floa
 	return stability
 }
 
-func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []models.Day) error {
+func AddSleepLogsToDays(userID string, slr *repository.AnalyticsRepository, days []models.Day) error {
 	for i, day := range days {
 		sleepLogs, err := slr.SleepLogs(userID, day.Date, day.Date)
 		if err != nil {
@@ -204,7 +204,7 @@ func AddSleepLogsToDays(userID string, slr *database.SleepLogRepository, days []
 	return nil
 }
 
-func AddMedicationLogsToDays(userID string, mlr *database.MedicationLogRepository, days []models.Day) error {
+func AddMedicationLogsToDays(userID string, mlr *repository.AnalyticsRepository, days []models.Day) error {
 	for i, day := range days {
 		medicationLogs, err := mlr.MedicationLogs(userID, day.Date, day.Date)
 		if err != nil {

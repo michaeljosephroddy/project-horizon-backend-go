@@ -32,18 +32,16 @@ type MedicationMetric struct {
 
 // MedicationStats represents detailed analytics for a specific medication
 type MedicationStats struct {
-	MedicationID   int     `json:"medicationId"`
-	Name           string  `json:"name"`
-	TotalDoses     int     `json:"totalDoses"`
-	DaysActive     int     `json:"daysActive"`
-	AvgDosesPerDay float64 `json:"avgDosesPerDay"`
-	// Timing Analysis (raw, no windows)
+	MedicationID        int     `json:"medicationId"`
+	Name                string  `json:"name"`
+	TotalDoses          int     `json:"totalDoses"`
+	DaysActive          int     `json:"daysActive"`
+	AvgDosesPerDay      float64 `json:"avgDosesPerDay"`
 	AvgTakenAtTime      string  `json:"avgTakenAtTime"`      // "08:30:15"
 	TimingStdDevMinutes float64 `json:"timingStdDevMinutes"` // e.g., 45.3 minutes
 	TimingDescription   string  `json:"timingDescription"`   // "8:47 AM ± 45 minutes"
 	EarliestTime        string  `json:"earliestTime"`        // "06:15:00"
 	LatestTime          string  `json:"latestTime"`          // "22:30:00"
-	// Streaks
-	LongestStreak int `json:"longestStreak"` // Consecutive days taken
-	CurrentStreak int `json:"currentStreak"`
+	LongestStreak       int     `json:"longestStreak"`       // Consecutive days taken
+	CurrentStreak       int     `json:"currentStreak"`
 }

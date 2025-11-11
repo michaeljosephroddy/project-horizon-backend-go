@@ -1,5 +1,5 @@
 // common utils
-package common_utils
+package utils
 
 import (
 	"fmt"
