@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"time"
-	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/analytics/models"
-	analytics_utils "github.com/michaeljosephroddy/project-horizon-backend-go/analytics/utils"
 	common_utils "github.com/michaeljosephroddy/project-horizon-backend-go/common/utils"
 )
 
@@ -97,14 +95,14 @@ func (handler *AnalyticsHandler) moodMetrics(userID string, startDate time.Time,
 		return nil, fmt.Errorf("failed to analyze current mood period: %w", err)
 	}
 
-	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
+	/* previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
 	previous, err := handler.analyticsService.analyzeMood(userID, previousStart, previousEnd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze previous mood period: %w", err)
 	}
 
 	diffs := handler.analyticsService.moodDiffs(current, previous)
-	current.Diffs = diffs
+	current.Diffs = diffs */
 
 	return current, nil
 }
@@ -115,14 +113,14 @@ func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time
 		return nil, fmt.Errorf("failed to analyze current sleep period: %w", err)
 	}
 
-	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
+	/* previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
 	previous, err := handler.analyticsService.analyzeSleep(userID, previousStart, previousEnd)
 	if err != nil {
 		return nil, fmt.Errorf("failed to analyze previous sleep period: %w", err)
 	}
 
 	diffs := handler.analyticsService.sleepDiffs(current, previous)
-	current.SleepDiffs = diffs
+	current.SleepDiffs = diffs */
 
 	return current, nil
 }
@@ -130,19 +128,19 @@ func (handler *AnalyticsHandler) sleepMetrics(userID string, startDate time.Time
 func (handler *AnalyticsHandler) medicationMetrics(userID string, startDate time.Time, endDate time.Time) (*models.MedicationMetric, error) {
 	current, err := handler.analyticsService.analyzeMedication(userID, startDate, endDate)
 	if err != nil {
-		log.Println("somehting wrong here %w", err)	
+		fmt.Println(err)
 		return nil, fmt.Errorf("failed to analyze current medication period: %w", err)
 	}
 
-	previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
+	/* previousStart, previousEnd := analytics_utils.PreviousDates(startDate, endDate)
 	previous, err := handler.analyticsService.analyzeMedication(userID, previousStart, previousEnd)
 	if err != nil {
-		log.Println("somehting wrong here as well %w", err)	
+		log.Println("somehting wrong here as well %w", err)
 		return nil, fmt.Errorf("failed to analyze previous medication period: %w", err)
 	}
 
 	diffs := handler.analyticsService.medicationDiffs(current, previous)
-	current.MedicationDiffs = diffs
+	current.MedicationDiffs = diffs */
 
 	return current, nil
 }

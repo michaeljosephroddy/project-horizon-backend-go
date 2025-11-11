@@ -28,24 +28,6 @@ type SleepMetric struct {
 	BestSleepDay         string    `json:"bestSleepDay"`
 	WorstSleepDay        string    `json:"worstSleepDay"`
 	SleepQualityTagStats []TagStat `json:"sleepQualityTagStats"`
-	SleepDiffs           SleepDiff `json:"sleepDiffs"`
-}
-
-// Sleep Diff
-type SleepDiff struct {
-	AvgSleepHours MetricChange `json:"avgSleepHours"`
-	MovingAvg     MetricChange `json:"movingAvg"`
-	Trend         ShiftChange  `json:"trend"`
-	StdDeviation  MetricChange `json:"stdDeviation"`
-	Stability     MetricChange `json:"stability"`
-	BestSleepDay  MetricChange `json:"bestSleepDay"`
-	WorstSleepDay MetricChange `json:"worstSleepDay"`
-	TopQualityTag MetricChange `json:"topQualityTag"`
-}
-
-type ShiftChange struct {
-	Description string  `json:"description"` // "increasing → stable"
-	Change      float64 `json:"change"`
 }
 
 type DayOfWeekSleepPattern struct {

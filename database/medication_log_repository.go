@@ -21,7 +21,35 @@ func NewMedicationLogRepository(dbConnection *sql.DB) *MedicationLogRepository {
 }
 
 func (mlr *MedicationLogRepository) MedicationLogs(userID string, startDate, endDate time.Time) ([]models.MedicationLog, error) {
-	rows, err := mlr.db.Query(medicationLogQuery, userID, startDate, endDate)
+	query := `SELECT 
+		ml.medication_log_id,
+		ml.user_id,
+		ml.taken_at,
+		ml.notes AS log_notes,
+		ml.created_at,
+		ml.updated_at,
+		JSON_ARRAYAGG(
+			JSON_OBJECT(
+				'medication_id', m.medication_id,
+				'name', m.name,
+				'dosage', mli.dosage
+			)
+		) AS medications
+	FROM medication_log ml
+	JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id
+	JOIN medication m ON m.medication_id = mli.medication_id
+	WHERE ml.user_id = ?
+		AND DATE(ml.taken_at) BETWEEN ? AND ?
+	GROUP BY 
+		ml.medication_log_id,
+		ml.user_id,
+		ml.taken_at,
+		ml.notes,
+		ml.created_at,
+		ml.updated_at
+	ORDER BY ml.taken_at DESC`
+
+	rows, err := mlr.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query medication logs: %w", err)
 	}
@@ -94,10 +122,8 @@ func (mlr *MedicationLogRepository) MedicationLogs(userID string, startDate, end
 }
 
 // OverviewStats gets high-level medication statistics
-func (mlr *MedicationLogRepository) OverviewStats(userID string, startDate, endDate time.Time) (int, float64, float64, float64, error) {
-	query := `
-		SELECT 
-			COUNT(*) as total_logs,
+func (mlr *MedicationLogRepository) OverviewStats(userID string, startDate, endDate time.Time) (float64, error) {
+	query := `SELECT 
 			COUNT(DISTINCT DATE(ml.taken_at)) as days_with_logs,
 			DATEDIFF(?, ?) + 1 as total_days,
 			AVG(med_count) as avg_meds_per_log
@@ -109,17 +135,16 @@ func (mlr *MedicationLogRepository) OverviewStats(userID string, startDate, endD
 		) med_counts ON ml.medication_log_id = med_counts.medication_log_id
 		LEFT JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id
 		WHERE ml.user_id = ?
-			AND DATE(ml.taken_at) BETWEEN ? AND ?
-	`
+			AND DATE(ml.taken_at) BETWEEN ? AND ?`
 
-	var totalLogs, daysWithLogs, totalDays int
+	var daysWithLogs, totalDays int
 	var avgMedsPerLog sql.NullFloat64
 
 	err := mlr.db.QueryRow(query, endDate, startDate, userID, startDate, endDate).Scan(
-		&totalLogs, &daysWithLogs, &totalDays, &avgMedsPerLog,
+		&daysWithLogs, &totalDays, &avgMedsPerLog,
 	)
 	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("failed to get overview stats: %w", err)
+		return 0, fmt.Errorf("failed to get overview stats: %w", err)
 	}
 
 	adherenceRate := 0.0
@@ -127,17 +152,7 @@ func (mlr *MedicationLogRepository) OverviewStats(userID string, startDate, endD
 		adherenceRate = (float64(daysWithLogs) / float64(totalDays)) * 100
 	}
 
-	avgLogsPerDay := 0.0
-	if totalDays > 0 {
-		avgLogsPerDay = float64(totalLogs) / float64(totalDays)
-	}
-
-	avgMedsPerLogValue := 0.0
-	if avgMedsPerLog.Valid {
-		avgMedsPerLogValue = avgMedsPerLog.Float64
-	}
-
-	return totalLogs, adherenceRate, avgLogsPerDay, avgMedsPerLogValue, nil
+	return adherenceRate, nil
 }
 
 // MedicationDetailedStats returns comprehensive stats for each medication
@@ -262,15 +277,13 @@ func formatTimingDescription(avgTime string, stdDevMinutes float64) string {
 }
 
 func (mlr *MedicationLogRepository) getStreaks(userID string, medID int, startDate, endDate time.Time) (int, int, error) {
-	query := `
-		SELECT DISTINCT DATE(ml.taken_at) as log_date
+	query := `SELECT DISTINCT DATE(ml.taken_at) as log_date
 		FROM medication_log ml
 		JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id
 		WHERE ml.user_id = ?
 			AND mli.medication_id = ?
 			AND DATE(ml.taken_at) BETWEEN ? AND ?
-		ORDER BY log_date
-	`
+		ORDER BY log_date`
 
 	rows, err := mlr.db.Query(query, userID, medID, startDate, endDate)
 	if err != nil {

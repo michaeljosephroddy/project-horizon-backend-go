@@ -86,24 +86,12 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get positive days: %w", err)
 	}
-	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, positiveDays); err != nil {
-		return nil, fmt.Errorf("failed to add sleep logs to positive days: %w", err)
-	}
-	if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, positiveDays); err != nil {
-		return nil, fmt.Errorf("failed to add medication logs to positive days: %w", err)
-	}
 	mtfPositiveDays := utils.MoodTagFrequencies(positiveDays)
 
 	// Neutral Days
 	neutralDays, err := service.moodLogRepository.Days(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get neutral days: %w", err)
-	}
-	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, neutralDays); err != nil {
-		return nil, fmt.Errorf("failed to add sleep logs to neutral days: %w", err)
-	}
-	if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, neutralDays); err != nil {
-		return nil, fmt.Errorf("failed to add medication logs to neutral days: %w", err)
 	}
 	mtfNeutralDays := utils.MoodTagFrequencies(neutralDays)
 
@@ -112,12 +100,6 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get negative days: %w", err)
 	}
-	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, negativeDays); err != nil {
-		return nil, fmt.Errorf("failed to add sleep logs to negative days: %w", err)
-	}
-	if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, negativeDays); err != nil {
-		return nil, fmt.Errorf("failed to add medication logs to negative days: %w", err)
-	}
 	mtfNegativeDays := utils.MoodTagFrequencies(negativeDays)
 
 	// Clinical Days
@@ -125,184 +107,28 @@ func (service *analyticsService) analyzeMood(userID string, startDate time.Time,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get clinical days: %w", err)
 	}
-	if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, clinicalDays); err != nil {
-		return nil, fmt.Errorf("failed to add sleep logs to clinical days: %w", err)
-	}
-	if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, clinicalDays); err != nil {
-		return nil, fmt.Errorf("failed to add medication logs to clinical days: %w", err)
-	}
 	mtfClinicalDays := utils.MoodTagFrequencies(clinicalDays)
-
-	// Positive Streaks
-	positiveStreaks, err := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minMoodRatingPositiveDay, positiveMoodCategory, tagPercentage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get positive streaks: %w", err)
-	}
-	for _, streak := range positiveStreaks {
-		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
-			return nil, fmt.Errorf("failed to add sleep logs to positive streak: %w", err)
-		}
-		if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days); err != nil {
-			return nil, fmt.Errorf("failed to add medication logs to positive streak: %w", err)
-		}
-	}
-
-	// Neutral Streaks
-	neutralStreaks, err := service.moodLogRepository.Streaks(userID, startDate, endDate, equalTo, neutralDayMoodRating, neutralMoodCategory, tagPercentage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get neutral streaks: %w", err)
-	}
-	for _, streak := range neutralStreaks {
-		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
-			return nil, fmt.Errorf("failed to add sleep logs to neutral streak: %w", err)
-		}
-		if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days); err != nil {
-			return nil, fmt.Errorf("failed to add medication logs to neutral streak: %w", err)
-		}
-	}
-
-	// Negative Streaks
-	negativeStreaks, err := service.moodLogRepository.Streaks(userID, startDate, endDate, lessThanOrEqual, maxMoodRatingNegativeDay, negativeMoodCategory, tagPercentage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get negative streaks: %w", err)
-	}
-	for _, streak := range negativeStreaks {
-		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
-			return nil, fmt.Errorf("failed to add sleep logs to negative streak: %w", err)
-		}
-		if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days); err != nil {
-			return nil, fmt.Errorf("failed to add medication logs to negative streak: %w", err)
-		}
-	}
-
-	// Clinical Streaks
-	clinicalStreaks, err := service.moodLogRepository.Streaks(userID, startDate, endDate, greaterThanOrEual, minClinicalMoodRating, clinicalMoodCategory, tagPercentage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get clinical streaks: %w", err)
-	}
-	for _, streak := range clinicalStreaks {
-		if err := utils.AddSleepLogsToDays(userID, service.sleepLogRepository, streak.Days); err != nil {
-			return nil, fmt.Errorf("failed to add sleep logs to clinical streak: %w", err)
-		}
-		if err := utils.AddMedicationLogsToDays(userID, service.medicationLogRepository, streak.Days); err != nil {
-			return nil, fmt.Errorf("failed to add medication logs to clinical streak: %w", err)
-		}
-	}
 
 	granularity := utils.Granularity(numDays)
 
 	moodMetrics := &models.MoodMetric{
-		UserID:       userID,
-		Granularity:  granularity,
-		StartDate:    startDate,
-		EndDate:      endDate,
-		MovingAvg:    movingAvg,
-		Trend:        moodTrend,
-		StdDeviation: standardDeviation,
-		Stability:    stability,
-		AvgRating:    avgMoodRating,
-		TagStats:     mtfPeriod,
-		Categories: models.MoodCategories{
-			Positive: models.CategoryData{
-				TagStats: mtfPositiveDays,
-				Streaks:  positiveStreaks,
-				Days:     positiveDays,
-			},
-			Neutral: models.CategoryData{
-				TagStats: mtfNeutralDays,
-				Streaks:  neutralStreaks,
-				Days:     neutralDays,
-			},
-			Negative: models.CategoryData{
-				TagStats: mtfNegativeDays,
-				Streaks:  negativeStreaks,
-				Days:     negativeDays,
-			},
-			Clinical: models.CategoryData{
-				TagStats: mtfClinicalDays,
-				Streaks:  clinicalStreaks,
-				Days:     clinicalDays,
-			},
-		},
-		Diffs: models.MoodDiff{},
+		UserID:               userID,
+		Granularity:          granularity,
+		StartDate:            startDate,
+		EndDate:              endDate,
+		MovingAvg:            movingAvg,
+		Trend:                moodTrend,
+		StdDeviation:         standardDeviation,
+		Stability:            stability,
+		AvgRating:            avgMoodRating,
+		TagStats:             mtfPeriod,
+		PositiveDaysTagStats: mtfPositiveDays,
+		NegativeDaysTagStats: mtfNegativeDays,
+		NeutralDaysTagStats:  mtfNeutralDays,
+		ClinicalDaysTagStats: mtfClinicalDays,
 	}
 
 	return moodMetrics, nil
-}
-
-func (service *analyticsService) moodDiffs(currentPeriod, previousPeriod *models.MoodMetric) models.MoodDiff {
-
-	var avgRating models.MetricChange
-	if previousPeriod.AvgRating > 0 {
-		avgRating.PercentChange = utils.PercentChange(currentPeriod.AvgRating, previousPeriod.AvgRating)
-	}
-
-	var trend models.ShiftChange
-	if previousPeriod.Trend != "" {
-		trend.Description = fmt.Sprintf("%s -> %s", previousPeriod.Trend, currentPeriod.Trend)
-		trend.Change = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
-	}
-
-	var stability models.MetricChange
-	if previousPeriod.Stability != "" {
-		stability.Shift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
-	}
-	if previousPeriod.StdDeviation > 0 {
-		stability.PercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
-	}
-
-	const tagStatsIndex = 0
-
-	var topTag models.MetricChange
-	if utils.BothContainValues(currentPeriod.TagStats, previousPeriod.TagStats) {
-		previousTag := previousPeriod.TagStats[tagStatsIndex]
-		currentTag := currentPeriod.TagStats[tagStatsIndex]
-		topTag.Shift = fmt.Sprintf("%s -> %s", previousTag.TagName, currentTag.TagName)
-
-		previousTagForCalc := utils.FindPreviousMood(currentPeriod.TagStats, previousPeriod.TagStats)
-		topTag.PercentChange = utils.PercentChange(currentTag.Percentage, previousTagForCalc.Percentage)
-	}
-
-	// Helper function to calculate category diffs
-	calculateCategoryDiff := func(current, previous models.CategoryData) models.CategoryDiff {
-		var diff models.CategoryDiff
-
-		if utils.BothContainValues(current.TagStats, previous.TagStats) {
-			previousTag := utils.FindPreviousMood(current.TagStats, previous.TagStats)
-			currentTag := current.TagStats[tagStatsIndex]
-			diff.TopTag.PercentChange = utils.PercentChange(currentTag.Percentage, previousTag.Percentage)
-
-			// Add shift for category top tag
-			previousTopTag := previous.TagStats[tagStatsIndex]
-			currentTopTag := current.TagStats[tagStatsIndex]
-			diff.TopTag.Shift = fmt.Sprintf("%s -> %s", previousTopTag.TagName, currentTopTag.TagName)
-		}
-
-		if utils.BothContainValues(current.Days, previous.Days) {
-			diff.DaysChange = utils.DifferenceInLength(current.Days, previous.Days)
-		}
-
-		if utils.BothContainValues(current.Streaks, previous.Streaks) {
-			diff.StreakChange = utils.DifferenceInLength(current.Streaks, previous.Streaks)
-		}
-
-		return diff
-	}
-
-	moodDiffs := models.MoodDiff{
-		AvgRating: avgRating,
-		Trend:     trend,
-		Stability: stability,
-		TopTag:    topTag,
-		Categories: models.CategoryDiffs{
-			Positive: calculateCategoryDiff(currentPeriod.Categories.Positive, previousPeriod.Categories.Positive),
-			Neutral:  calculateCategoryDiff(currentPeriod.Categories.Neutral, previousPeriod.Categories.Neutral),
-			Negative: calculateCategoryDiff(currentPeriod.Categories.Negative, previousPeriod.Categories.Negative),
-			Clinical: calculateCategoryDiff(currentPeriod.Categories.Clinical, previousPeriod.Categories.Clinical),
-		},
-	}
-
-	return moodDiffs
 }
 
 func (service *analyticsService) analyzeSleep(userID string, startDate time.Time, endDate time.Time) (*models.SleepMetric, error) {
@@ -370,7 +196,7 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 		}
 	}
 
-	sleepMetrics := &models.SleepMetric{
+	sleepMetric := &models.SleepMetric{
 		UserID:               userID,
 		Granularity:          granularity,
 		StartDate:            startDate,
@@ -383,75 +209,9 @@ func (service *analyticsService) analyzeSleep(userID string, startDate time.Time
 		BestSleepDay:         bestSleepDay,
 		WorstSleepDay:        worstSleepDay,
 		SleepQualityTagStats: topSleepQualityTags,
-		SleepDiffs:           models.SleepDiff{},
 	}
 
-	return sleepMetrics, nil
-}
-
-func (service *analyticsService) sleepDiffs(currentPeriod, previousPeriod *models.SleepMetric) models.SleepDiff {
-	var avgSleepHours models.MetricChange
-	if previousPeriod.AvgSleepHours > 0 {
-		avgSleepHours.PercentChange = utils.PercentChange(currentPeriod.AvgSleepHours, previousPeriod.AvgSleepHours)
-	}
-
-	var movingAvg models.MetricChange
-	if previousPeriod.MovingAvg > 0 {
-		movingAvg.PercentChange = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
-	}
-
-	var trend models.ShiftChange
-	if previousPeriod.SleepTrend != "" {
-		trend.Description = fmt.Sprintf("%s -> %s", previousPeriod.SleepTrend, currentPeriod.SleepTrend)
-		trend.Change = utils.PercentChange(currentPeriod.MovingAvg, previousPeriod.MovingAvg)
-	}
-
-	var stdDeviation models.MetricChange
-	if previousPeriod.StdDeviation > 0 {
-		stdDeviation.PercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
-	}
-
-	var stability models.MetricChange
-	if previousPeriod.Stability != "" {
-		stability.Shift = fmt.Sprintf("%s -> %s", previousPeriod.Stability, currentPeriod.Stability)
-	}
-	if previousPeriod.StdDeviation > 0 {
-		stability.PercentChange = utils.PercentChange(currentPeriod.StdDeviation, previousPeriod.StdDeviation)
-	}
-
-	var bestSleepDay models.MetricChange
-	if previousPeriod.BestSleepDay != "" {
-		bestSleepDay.Shift = fmt.Sprintf("%s -> %s", previousPeriod.BestSleepDay, currentPeriod.BestSleepDay)
-	}
-
-	var worstSleepDay models.MetricChange
-	if previousPeriod.WorstSleepDay != "" {
-		worstSleepDay.Shift = fmt.Sprintf("%s -> %s", previousPeriod.WorstSleepDay, currentPeriod.WorstSleepDay)
-	}
-
-	const moodTagStatsIndex = 0
-	var topQualityTag models.MetricChange
-	if utils.BothContainValues(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats) {
-		previousMood := previousPeriod.SleepQualityTagStats[moodTagStatsIndex]
-		currentMood := currentPeriod.SleepQualityTagStats[moodTagStatsIndex]
-		topQualityTag.Shift = fmt.Sprintf("%s -> %s", previousMood.TagName, currentMood.TagName)
-
-		previousMoodForCalc := utils.FindPreviousMood(currentPeriod.SleepQualityTagStats, previousPeriod.SleepQualityTagStats)
-		topQualityTag.PercentChange = utils.PercentChange(currentMood.Percentage, previousMoodForCalc.Percentage)
-	}
-
-	sleepDiffs := models.SleepDiff{
-		AvgSleepHours: avgSleepHours,
-		MovingAvg:     movingAvg,
-		Trend:         trend,
-		StdDeviation:  stdDeviation,
-		Stability:     stability,
-		BestSleepDay:  bestSleepDay,
-		WorstSleepDay: worstSleepDay,
-		TopQualityTag: topQualityTag,
-	}
-
-	return sleepDiffs
+	return sleepMetric, nil
 }
 
 // TODO implement this func
@@ -460,7 +220,7 @@ func (service *analyticsService) analyzeMedication(userID string, startDate time
 	granularity := utils.Granularity(numDays)
 
 	// Get overview statistics
-	totalLogs, adherenceRate, avgLogsPerDay, avgMedsPerLog, err := service.medicationLogRepository.OverviewStats(userID, startDate, endDate)
+	adherenceRate, err := service.medicationLogRepository.OverviewStats(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get overview stats: %w", err)
 	}
@@ -472,60 +232,13 @@ func (service *analyticsService) analyzeMedication(userID string, startDate time
 	}
 
 	medicationMetric := &models.MedicationMetric{
-		UserID:             userID,
-		Granularity:        granularity,
-		StartDate:          startDate,
-		EndDate:            endDate,
-		TotalLogs:          totalLogs,
-		AdherenceRate:      adherenceRate,
-		AvgLogsPerDay:      avgLogsPerDay,
-		AvgMedsPerLog:      avgMedsPerLog,
-		MedicationStats:    medicationStats,
-		MedicationDiffs:    models.MedicationDiff{}, // Will be populated if comparing
+		UserID:          userID,
+		Granularity:     granularity,
+		StartDate:       startDate,
+		EndDate:         endDate,
+		AdherenceRate:   adherenceRate,
+		MedicationStats: medicationStats,
 	}
 
 	return medicationMetric, nil
-}
-
-func (service *analyticsService) medicationDiffs(currentPeriod, previousPeriod *models.MedicationMetric) models.MedicationDiff {
-	diff := models.MedicationDiff{
-		TotalLogs: models.MetricChange{
-			Current:       float64(currentPeriod.TotalLogs),
-			Previous:      float64(previousPeriod.TotalLogs),
-			Change:        float64(currentPeriod.TotalLogs - previousPeriod.TotalLogs),
-			PercentChange: utils.PercentChange(float64(currentPeriod.TotalLogs), float64(previousPeriod.TotalLogs)),
-		},
-		AdherenceRate: models.MetricChange{
-			Current:       currentPeriod.AdherenceRate,
-			Previous:      previousPeriod.AdherenceRate,
-			Change:        currentPeriod.AdherenceRate - previousPeriod.AdherenceRate,
-			PercentChange: utils.PercentChange(currentPeriod.AdherenceRate, previousPeriod.AdherenceRate),
-		},
-		AvgLogsPerDay: models.MetricChange{
-			Current:       currentPeriod.AvgLogsPerDay,
-			Previous:      previousPeriod.AvgLogsPerDay,
-			Change:        currentPeriod.AvgLogsPerDay - previousPeriod.AvgLogsPerDay,
-			PercentChange: utils.PercentChange(currentPeriod.AvgLogsPerDay, previousPeriod.AvgLogsPerDay),
-		},
-		AvgMedsPerLog: models.MetricChange{
-			Current:       currentPeriod.AvgMedsPerLog,
-			Previous:      previousPeriod.AvgMedsPerLog,
-			Change:        currentPeriod.AvgMedsPerLog - previousPeriod.AvgMedsPerLog,
-			PercentChange: utils.PercentChange(currentPeriod.AvgMedsPerLog, previousPeriod.AvgMedsPerLog),
-		},
-	}
-
-	// Map previous period medications by ID
-	prevMedMap := make(map[int]models.MedicationStats)
-	for _, med := range previousPeriod.MedicationStats {
-		prevMedMap[med.MedicationID] = med
-	}
-
-	// Map current period medications by ID
-	currMedMap := make(map[int]models.MedicationStats)
-	for _, med := range currentPeriod.MedicationStats {
-		currMedMap[med.MedicationID] = med
-	}
-
-	return diff
 }

@@ -25,7 +25,12 @@ const (
 )
 
 func (slr *SleepLogRepository) AvgSleepHours(userID string, startDate time.Time, endDate time.Time) (float64, error) {
-	rows, err := slr.db.Query(avgSleepHoursQuery, userID, startDate, endDate)
+	query := `SELECT Avg(hours_slept) AS avg_sleep_hours
+FROM   sleep_log
+WHERE  user_id = ?
+       AND sleep_date BETWEEN ? AND ?;`
+
+	rows, err := slr.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query average sleep hours: %w", err)
 	}
@@ -52,7 +57,23 @@ func (slr *SleepLogRepository) AvgSleepHours(userID string, startDate time.Time,
 }
 
 func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]models.MovingAverage, error) {
-	query := fmt.Sprintf(sleepMovingAvgQuery, numDaysPreceding)
+	query := fmt.Sprintf(`WITH first_query
+     AS (SELECT sleep_date AS DATE,
+                Avg(hours_slept) AS avg_sleep_hours 
+         FROM   sleep_log
+         WHERE  user_id = ?
+                AND sleep_date BETWEEN ? AND ?
+	),
+     second_query
+     AS (SELECT DATE,
+                Avg(avg_sleep_hours)
+                  OVER(
+                    ORDER BY DATE ROWS BETWEEN %s preceding AND CURRENT ROW) AS
+                   moving_avg
+         FROM   first_query)
+SELECT *
+FROM   second_query
+ORDER  BY DATE;`, numDaysPreceding)
 	rows, err := slr.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query moving average sleep: %w", err)
@@ -98,7 +119,11 @@ func (slr *SleepLogRepository) MovingAvgSleep(userID string, startDate time.Time
 }
 
 func (slr *SleepLogRepository) StandardDeviation(userID string, startDate time.Time, endDate time.Time) (float64, error) {
-	rows, err := slr.db.Query(sleepStdDevQuery, userID, startDate, endDate)
+	query := `SELECT Stddev_pop(hours_slept) AS std_dev
+FROM   sleep_log
+WHERE  user_id = ?
+       AND sleep_date BETWEEN ? AND ?;`
+	rows, err := slr.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query sleep standard deviation: %w", err)
 	}
@@ -125,7 +150,28 @@ func (slr *SleepLogRepository) StandardDeviation(userID string, startDate time.T
 }
 
 func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate time.Time, endDate time.Time) ([]models.TagStat, error) {
-	rows, err := slr.db.Query(sleepQualityTagStatQuery, userID, startDate, endDate)
+	query := `WITH tag_counts AS (
+    SELECT 
+        sqt.name AS tag_name,
+        COUNT(*) AS tag_count
+    FROM sleep_log sl
+    JOIN sleep_quality_tag sqt 
+        ON sl.sleep_quality_tag_id = sqt.sleep_quality_tag_id
+    WHERE sl.user_id = ? and sleep_date between ? and ?
+    GROUP BY sqt.name
+),
+tag_percentages AS (
+    SELECT
+        tag_name,
+        tag_count,
+        ROUND(tag_count * 100.0 / SUM(tag_count) OVER (), 2) AS percentage
+    FROM tag_counts
+)
+SELECT *
+FROM tag_percentages
+ORDER BY tag_count ASC;`
+
+	rows, err := slr.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sleep quality tag stats: %w", err)
 	}
@@ -164,7 +210,22 @@ func (slr *SleepLogRepository) SleepQualityTagStat(userID string, startDate time
 }
 
 func (slr *SleepLogRepository) SleepLogs(userID string, startDate time.Time, endDate time.Time) ([]models.SleepLog, error) {
-	rows, err := slr.db.Query(sleepLogsQuery, userID, startDate, endDate)
+	query := `SELECT sl.sleep_log_id,
+       sl.user_id,
+       sl.hours_slept,
+       sqt.NAME AS sleep_quality_tag_name,
+       sl.notes,
+       sl.sleep_date,
+       sl.created_at,
+       sl.updated_at
+FROM   sleep_log sl
+       JOIN sleep_quality_tag sqt
+         ON sl.sleep_quality_tag_id = sqt.sleep_quality_tag_id
+WHERE  sl.user_id = ?
+       AND sl.sleep_date BETWEEN ? AND ?
+ORDER  BY sl.sleep_date;`
+
+	rows, err := slr.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query sleep logs: %w", err)
 	}
@@ -225,7 +286,18 @@ func (slr *SleepLogRepository) SleepLogs(userID string, startDate time.Time, end
 }
 
 func (slr *SleepLogRepository) DayOfWeekSleepPatterns(userID string, startDate time.Time, endDate time.Time) ([]models.DayOfWeekSleepPattern, error) {
-	rows, err := slr.db.Query(dayOfWeekSleepPatternsQuery, userID, startDate, endDate)
+	query := `SELECT
+    DAYNAME(sleep_date) AS day_of_week,
+    DAYOFWEEK(sleep_date) AS day_number,
+    AVG(hours_slept) AS avg_sleep_hours,
+    COUNT(*) AS total_entries
+FROM sleep_log
+WHERE user_id = ?
+    AND sleep_date BETWEEN ? AND ?
+GROUP BY day_of_week, day_number
+ORDER BY day_number;`
+
+	rows, err := slr.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query day-of-week sleep patterns: %w", err)
 	}
