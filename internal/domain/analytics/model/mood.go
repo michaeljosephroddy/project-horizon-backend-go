@@ -1,20 +1,18 @@
-package models
+package model
 
 import "time"
 
 // Mood Metric
 type MoodMetric struct {
-	UserID      string    `json:"userId"`
-	Granularity string    `json:"granularity"`
-	StartDate   time.Time `json:"startDate"`
-	EndDate     time.Time `json:"endDate"`
-	// Statistical measures
-	MovingAvg    float64 `json:"movingAvg"`
-	AvgRating    float64 `json:"avgRating"`
-	Trend        string  `json:"trend"`
-	StdDeviation float64 `json:"stdDeviation"`
-	Stability    string  `json:"stability"`
-	// Overall tag statistics
+	UserID             string    `json:"userId"`
+	Granularity        string    `json:"granularity"`
+	StartDate          time.Time `json:"startDate"`
+	EndDate            time.Time `json:"endDate"`
+	MovingAvg          float64   `json:"movingAvg"`
+	AvgRating          float64   `json:"avgRating"`
+	Trend              string    `json:"trend"`
+	StdDeviation       float64   `json:"stdDeviation"`
+	Stability          string    `json:"stability"`
 	TagStats           []TagStat `json:"tagStats"`
 	TopTagPositiveDays TagStat   `json:"topTagPositiveDays"`
 	TopTagNegativeDays TagStat   `json:"topTagNegativeDays"`

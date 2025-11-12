@@ -1,26 +1,22 @@
 package utils
 
 import (
-	"fmt"
 	"slices"
-	"strings"
 
 	"time"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/repository"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/models"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/model"
 )
 
-func TopTagStat(data []models.TagStat) models.TagStat {
+func TopTagStat(data []model.TagStat) model.TagStat {
 	if len(data) == 0 {
-		return models.TagStat{}
+		return model.TagStat{}
 	}
 	return data[0]
 
 }
 
-// TODO make these package private if not used outside analytics package
-func MoodTagFrequencies(days []models.Day) []models.TagStat {
+func MoodTagFrequencies(days []model.Day) []model.TagStat {
 	var tags []string
 	for _, day := range days {
 		for _, mtf := range day.MoodLogs {
@@ -42,12 +38,12 @@ func MoodTagFrequencies(days []models.Day) []models.TagStat {
 		freq[tag] = freq[tag] + incrementVal
 	}
 
-	var moodTagFrequencies []models.TagStat
+	var moodTagFrequencies []model.TagStat
 	for key, val := range freq {
 		count := int(val)
 		percentage := (val / float64(len(tags))) * 100.0
 
-		mtf := models.TagStat{
+		mtf := model.TagStat{
 			Count:      count,
 			TagName:    key,
 			Percentage: percentage,
@@ -56,38 +52,18 @@ func MoodTagFrequencies(days []models.Day) []models.TagStat {
 		moodTagFrequencies = append(moodTagFrequencies, mtf)
 	}
 
-	slices.SortFunc(moodTagFrequencies, func(a, b models.TagStat) int {
+	slices.SortFunc(moodTagFrequencies, func(a, b model.TagStat) int {
 		return int(b.Percentage - a.Percentage)
 	})
 
 	if moodTagFrequencies == nil {
-		return make([]models.TagStat, 0)
+		return make([]model.TagStat, 0)
 	}
 
 	return moodTagFrequencies
 }
 
-func FindPreviousMood(currentMoods, previousMoods []models.TagStat) models.TagStat {
-	var previousMood models.TagStat
-	for _, mood := range previousMoods {
-		if strings.EqualFold(mood.TagName, currentMoods[0].TagName) {
-			previousMood = mood
-			break
-		}
-	}
-	return previousMood
-}
-
-func PreviousDates(startDate time.Time, endDate time.Time) (time.Time, time.Time) {
-	const layout = "2006-01-02"
-	diff := endDate.Sub(startDate)
-	numDays := int(diff.Hours() / 24)
-	previousStartDate, _ := time.Parse(layout, startDate.AddDate(0, 0, -numDays).Format(layout))
-	previousEndDate, _ := time.Parse(layout, startDate.AddDate(0, 0, -1).Format(layout))
-	return previousStartDate, previousEndDate
-}
-
-func Trend(movingAvergaes []models.MovingAverage) string {
+func Trend(movingAvergaes []model.MovingAverage) string {
 	const (
 		increasing = "increasing"
 		decreasing = "decreasing"
@@ -186,36 +162,4 @@ func StdDeviation(standardDeviation float64, noData float64, minModerateVal floa
 
 	}
 	return stability
-}
-
-func AddSleepLogsToDays(userID string, slr *repository.AnalyticsRepository, days []models.Day) error {
-	for i, day := range days {
-		sleepLogs, err := slr.SleepLogs(userID, day.Date, day.Date)
-		if err != nil {
-			return fmt.Errorf("failed to get sleep logs for day %s: %w", day.Date.Format("2006-01-02"), err)
-		}
-		if len(sleepLogs) == 0 {
-			days[i].SleepLogs = make([]models.SleepLog, 0)
-			continue
-		}
-		// Just assign all the logs directly since the query already filtered by date
-		days[i].SleepLogs = sleepLogs
-	}
-	return nil
-}
-
-func AddMedicationLogsToDays(userID string, mlr *repository.AnalyticsRepository, days []models.Day) error {
-	for i, day := range days {
-		medicationLogs, err := mlr.MedicationLogs(userID, day.Date, day.Date)
-		if err != nil {
-			return fmt.Errorf("failed to get medication logs for day %s: %w", day.Date.Format("2006-01-02"), err)
-		}
-		if len(medicationLogs) == 0 {
-			days[i].MedicationLogs = make([]models.MedicationLog, 0)
-			continue
-		}
-		// Just assign all the logs directly since the query already filtered by date
-		days[i].MedicationLogs = medicationLogs
-	}
-	return nil
 }

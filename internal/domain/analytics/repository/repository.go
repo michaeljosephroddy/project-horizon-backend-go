@@ -10,7 +10,7 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/models"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/model"
 )
 
 type AnalyticsRepository struct {
@@ -28,7 +28,7 @@ const (
 	dateTimeLayout = "2006-01-02 15:04:05"
 )
 
-func (ar *AnalyticsRepository) Days(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) ([]models.Day, error) {
+func (ar *AnalyticsRepository) Days(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) ([]model.Day, error) {
 	// Build the query with the operator
 	query := fmt.Sprintf(`WITH mood_data AS
 (
@@ -94,7 +94,7 @@ ORDER BY date DESC,
 	}
 	defer rows.Close()
 
-	resultsByDate := make(map[string]*models.Day)
+	resultsByDate := make(map[string]*model.Day)
 
 	for rows.Next() {
 		var dateStr string
@@ -143,10 +143,10 @@ ORDER BY date DESC,
 		}
 
 		if _, exists := resultsByDate[dateStr]; !exists {
-			resultsByDate[dateStr] = &models.Day{
+			resultsByDate[dateStr] = &model.Day{
 				Date:           parsedDate,
 				DailyAvgRating: dailyAvgRating,
-				MoodLogs:       []models.MoodLog{},
+				MoodLogs:       []model.MoodLog{},
 			}
 		}
 
@@ -166,7 +166,7 @@ ORDER BY date DESC,
 			noteValue = note.String
 		}
 
-		entry := models.MoodLog{
+		entry := model.MoodLog{
 			CreatedAt:  createdAt,
 			UserID:     userID,
 			MoodLogID:  moodLogID,
@@ -182,7 +182,7 @@ ORDER BY date DESC,
 		return nil, fmt.Errorf("error iterating day rows: %w", err)
 	}
 
-	days := make([]models.Day, 0, len(resultsByDate))
+	days := make([]model.Day, 0, len(resultsByDate))
 	for _, day := range resultsByDate {
 		days = append(days, *day)
 	}
@@ -227,7 +227,7 @@ WHERE  user_id = ?
 	return standardDeviation.Float64, nil
 }
 
-func (ar *AnalyticsRepository) MovingAverages(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]models.MovingAverage, error) {
+func (ar *AnalyticsRepository) MovingAverages(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
 	query := fmt.Sprintf(`WITH first_query
      AS (SELECT DATE(created_at) AS DATE,
                 Avg(mood_rating) AS daily_avg
@@ -252,7 +252,7 @@ ORDER  BY DATE;`, numDaysPreceding)
 	}
 	defer rows.Close()
 
-	var movingAverages []models.MovingAverage
+	var movingAverages []model.MovingAverage
 
 	for rows.Next() {
 		var dateStr string
@@ -269,7 +269,7 @@ ORDER  BY DATE;`, numDaysPreceding)
 			return nil, fmt.Errorf("failed to parse moving average date: %w", err)
 		}
 
-		movingAverages = append(movingAverages, models.MovingAverage{
+		movingAverages = append(movingAverages, model.MovingAverage{
 			Date:      parsedDate,
 			MovingAvg: movingAvg,
 		})
@@ -280,13 +280,13 @@ ORDER  BY DATE;`, numDaysPreceding)
 	}
 
 	if movingAverages == nil {
-		return make([]models.MovingAverage, 0), nil
+		return make([]model.MovingAverage, 0), nil
 	}
 
 	return movingAverages, nil
 }
 
-func (ar *AnalyticsRepository) MoodLogs(userID string, startDate time.Time, endDate time.Time) ([]models.MoodLog, error) {
+func (ar *AnalyticsRepository) MoodLogs(userID string, startDate time.Time, endDate time.Time) ([]model.MoodLog, error) {
 	query := `SELECT *
 FROM   mood_log
 WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?;`
@@ -297,10 +297,10 @@ WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?;`
 	}
 	defer rows.Close()
 
-	var moodLogs []models.MoodLog
+	var moodLogs []model.MoodLog
 
 	for rows.Next() {
-		var moodLog models.MoodLog
+		var moodLog model.MoodLog
 
 		err := rows.Scan(
 			&moodLog.MoodLogID,
@@ -321,13 +321,13 @@ WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?;`
 	}
 
 	if moodLogs == nil {
-		return make([]models.MoodLog, 0), nil
+		return make([]model.MoodLog, 0), nil
 	}
 
 	return moodLogs, nil
 }
 
-func (ar *AnalyticsRepository) MoodTagFrequencies(userID string, startDate time.Time, endDate time.Time) ([]models.TagStat, error) {
+func (ar *AnalyticsRepository) MoodTagFrequencies(userID string, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
 	query := `WITH first_query
      AS (SELECT ml.mood_log_id,
                 mlmt.mood_tag_id,
@@ -364,10 +364,10 @@ FROM   second_query;`
 	}
 	defer rows.Close()
 
-	var moodTagFrequencies []models.TagStat
+	var moodTagFrequencies []model.TagStat
 
 	for rows.Next() {
-		var moodTagStat models.TagStat
+		var moodTagStat model.TagStat
 
 		err := rows.Scan(
 			&moodTagStat.TagName,
@@ -385,12 +385,12 @@ FROM   second_query;`
 		return nil, fmt.Errorf("error iterating mood tag frequency rows: %w", err)
 	}
 
-	slices.SortFunc(moodTagFrequencies, func(a, b models.TagStat) int {
+	slices.SortFunc(moodTagFrequencies, func(a, b model.TagStat) int {
 		return int(b.Percentage - a.Percentage)
 	})
 
 	if moodTagFrequencies == nil {
-		return make([]models.TagStat, 0), nil
+		return make([]model.TagStat, 0), nil
 	}
 
 	return moodTagFrequencies, nil
@@ -467,7 +467,7 @@ WHERE  user_id = ?
 	return avgSleepHours.Float64, nil
 }
 
-func (ar *AnalyticsRepository) MovingAvgSleep(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]models.MovingAverage, error) {
+func (ar *AnalyticsRepository) MovingAvgSleep(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
 	query := fmt.Sprintf(`WITH first_query
      AS (SELECT sleep_date AS DATE,
                 Avg(hours_slept) AS avg_sleep_hours 
@@ -491,10 +491,10 @@ ORDER  BY DATE;`, numDaysPreceding)
 	}
 	defer rows.Close()
 
-	var movingAverages []models.MovingAverage
+	var movingAverages []model.MovingAverage
 
 	for rows.Next() {
-		var movingAvg models.MovingAverage
+		var movingAvg model.MovingAverage
 		var date sql.NullString
 		var movingAvgVal sql.NullFloat64
 
@@ -523,7 +523,7 @@ ORDER  BY DATE;`, numDaysPreceding)
 	}
 
 	if movingAverages == nil {
-		return make([]models.MovingAverage, 0), nil
+		return make([]model.MovingAverage, 0), nil
 	}
 
 	return movingAverages, nil
@@ -560,7 +560,7 @@ WHERE  user_id = ?
 	return standardDeviation.Float64, nil
 }
 
-func (ar *AnalyticsRepository) SleepQualityTagStat(userID string, startDate time.Time, endDate time.Time) ([]models.TagStat, error) {
+func (ar *AnalyticsRepository) SleepQualityTagStat(userID string, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
 	query := `WITH tag_counts AS (
     SELECT 
         sqt.name AS tag_name,
@@ -588,10 +588,10 @@ ORDER BY tag_count ASC;`
 	}
 	defer rows.Close()
 
-	var sleepTagFrequencies []models.TagStat
+	var sleepTagFrequencies []model.TagStat
 
 	for rows.Next() {
-		var sleepTagStat models.TagStat
+		var sleepTagStat model.TagStat
 
 		err := rows.Scan(
 			&sleepTagStat.TagName,
@@ -610,17 +610,17 @@ ORDER BY tag_count ASC;`
 	}
 
 	if sleepTagFrequencies == nil {
-		return make([]models.TagStat, 0), nil
+		return make([]model.TagStat, 0), nil
 	}
 
-	slices.SortFunc(sleepTagFrequencies, func(a, b models.TagStat) int {
+	slices.SortFunc(sleepTagFrequencies, func(a, b model.TagStat) int {
 		return int(b.Percentage - a.Percentage)
 	})
 
 	return sleepTagFrequencies, nil
 }
 
-func (ar *AnalyticsRepository) SleepLogs(userID string, startDate time.Time, endDate time.Time) ([]models.SleepLog, error) {
+func (ar *AnalyticsRepository) SleepLogs(userID string, startDate time.Time, endDate time.Time) ([]model.SleepLog, error) {
 	query := `SELECT sl.sleep_log_id,
        sl.user_id,
        sl.hours_slept,
@@ -642,10 +642,10 @@ ORDER  BY sl.sleep_date;`
 	}
 	defer rows.Close()
 
-	var sleepLogs []models.SleepLog
+	var sleepLogs []model.SleepLog
 
 	for rows.Next() {
-		var sleepLog models.SleepLog
+		var sleepLog model.SleepLog
 		var sleepDateStr, createdAtStr, updatedAtStr string
 
 		err := rows.Scan(
@@ -690,13 +690,13 @@ ORDER  BY sl.sleep_date;`
 	}
 
 	if sleepLogs == nil {
-		return make([]models.SleepLog, 0), nil
+		return make([]model.SleepLog, 0), nil
 	}
 
 	return sleepLogs, nil
 }
 
-func (ar *AnalyticsRepository) DayOfWeekSleepPatterns(userID string, startDate time.Time, endDate time.Time) ([]models.DayOfWeekSleepPattern, error) {
+func (ar *AnalyticsRepository) DayOfWeekSleepPatterns(userID string, startDate time.Time, endDate time.Time) ([]model.DayOfWeekSleepPattern, error) {
 	query := `SELECT
     DAYNAME(sleep_date) AS day_of_week,
     DAYOFWEEK(sleep_date) AS day_number,
@@ -714,10 +714,10 @@ ORDER BY day_number;`
 	}
 	defer rows.Close()
 
-	var patterns []models.DayOfWeekSleepPattern
+	var patterns []model.DayOfWeekSleepPattern
 
 	for rows.Next() {
-		var pattern models.DayOfWeekSleepPattern
+		var pattern model.DayOfWeekSleepPattern
 
 		err := rows.Scan(
 			&pattern.DayOfWeek,
@@ -737,12 +737,12 @@ ORDER BY day_number;`
 	}
 
 	if patterns == nil {
-		return make([]models.DayOfWeekSleepPattern, 0), nil
+		return make([]model.DayOfWeekSleepPattern, 0), nil
 	}
 
 	return patterns, nil
 }
-func (ar *AnalyticsRepository) MedicationLogs(userID string, startDate, endDate time.Time) ([]models.MedicationLog, error) {
+func (ar *AnalyticsRepository) MedicationLogs(userID string, startDate, endDate time.Time) ([]model.MedicationLog, error) {
 	query := `SELECT 
 		ml.medication_log_id,
 		ml.user_id,
@@ -777,10 +777,10 @@ func (ar *AnalyticsRepository) MedicationLogs(userID string, startDate, endDate 
 	}
 	defer rows.Close()
 
-	var medicationLogs []models.MedicationLog
+	var medicationLogs []model.MedicationLog
 
 	for rows.Next() {
-		var medicationLog models.MedicationLog
+		var medicationLog model.MedicationLog
 		var medicationsJSON string
 		var note sql.NullString
 		var takenAtStr, createdAtStr, updatedAtStr string
@@ -826,7 +826,7 @@ func (ar *AnalyticsRepository) MedicationLogs(userID string, startDate, endDate 
 		}
 
 		// Parse JSON field
-		var meds []models.Medication
+		var meds []model.Medication
 		if err := json.Unmarshal([]byte(medicationsJSON), &meds); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal medications JSON: %w", err)
 		}
@@ -878,7 +878,7 @@ func (ar *AnalyticsRepository) OverviewStats(userID string, startDate, endDate t
 }
 
 // MedicationDetailedStats returns comprehensive stats for each medication
-func (ar *AnalyticsRepository) MedicationDetailedStats(userID string, startDate, endDate time.Time) ([]models.MedicationStats, error) {
+func (ar *AnalyticsRepository) MedicationDetailedStats(userID string, startDate, endDate time.Time) ([]model.MedicationStats, error) {
 	// First, get basic stats per medication
 	query := `SELECT 
 			m.medication_id,
@@ -900,7 +900,7 @@ func (ar *AnalyticsRepository) MedicationDetailedStats(userID string, startDate,
 	}
 	defer rows.Close()
 
-	var stats []models.MedicationStats
+	var stats []model.MedicationStats
 
 	for rows.Next() {
 		var medID, totalDoses, daysActive, totalDays int
@@ -910,7 +910,7 @@ func (ar *AnalyticsRepository) MedicationDetailedStats(userID string, startDate,
 			return nil, fmt.Errorf("failed to scan medication stat: %w", err)
 		}
 
-		stat := models.MedicationStats{
+		stat := model.MedicationStats{
 			MedicationID:   medID,
 			Name:           name,
 			TotalDoses:     totalDoses,
@@ -943,7 +943,7 @@ func (ar *AnalyticsRepository) MedicationDetailedStats(userID string, startDate,
 	return stats, rows.Err()
 }
 
-func (ar *AnalyticsRepository) getTimingStats(userID string, medID int, startDate, endDate time.Time) (models.TimingStats, error) {
+func (ar *AnalyticsRepository) getTimingStats(userID string, medID int, startDate, endDate time.Time) (model.TimingStats, error) {
 	query := `SELECT 
 				TIME_FORMAT(SEC_TO_TIME(AVG(TIME_TO_SEC(TIME(ml.taken_at)))), '%H:%i:%s') as avg_time,
 				STD(TIME_TO_SEC(TIME(ml.taken_at))) / 60 as std_dev_minutes,
@@ -962,7 +962,7 @@ func (ar *AnalyticsRepository) getTimingStats(userID string, medID int, startDat
 		&avgTime, &stdDevMinutes, &earliestTime, &latestTime,
 	)
 	if err != nil {
-		return models.TimingStats{}, fmt.Errorf("failed to get timing stats: %w", err)
+		return model.TimingStats{}, fmt.Errorf("failed to get timing stats: %w", err)
 	}
 
 	stdDev := 0.0
@@ -973,7 +973,7 @@ func (ar *AnalyticsRepository) getTimingStats(userID string, medID int, startDat
 	// Format description like "8:47 AM ± 45 minutes"
 	description := formatTimingDescription(avgTime, stdDev)
 
-	return models.TimingStats{
+	return model.TimingStats{
 		AvgTime:       avgTime,
 		StdDevMinutes: stdDev,
 		Description:   description,
