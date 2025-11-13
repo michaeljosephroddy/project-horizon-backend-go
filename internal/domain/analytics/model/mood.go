@@ -13,7 +13,7 @@ type MoodMetric struct {
 	Trend              string    `json:"trend"`
 	StdDeviation       float64   `json:"stdDeviation"`
 	Stability          string    `json:"stability"`
-	TagStats           []TagStat `json:"tagStats"`
+	TopTagOverall      TagStat   `json:"topTagOverall"`
 	TopTagPositiveDays TagStat   `json:"topTagPositiveDays"`
 	TopTagNegativeDays TagStat   `json:"topTagNegativeDays"`
 	TopTagNeutralDays  TagStat   `json:"topTagNeutralDays"`

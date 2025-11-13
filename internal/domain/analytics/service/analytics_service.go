@@ -12,10 +12,10 @@ import (
 )
 
 type AnalyticsService struct {
-	analyticsRepository *repository.AnalyticsRepository
+	analyticsRepository repository.AnalyticsRepositoryInterface
 }
 
-func NewAnalyticsService(analyticsRepository *repository.AnalyticsRepository) *AnalyticsService {
+func NewAnalyticsService(analyticsRepository repository.AnalyticsRepositoryInterface) *AnalyticsService {
 	return &AnalyticsService{
 		analyticsRepository: analyticsRepository,
 	}
@@ -30,6 +30,7 @@ func (as *AnalyticsService) AnalyzeMood(userID string, startDate time.Time, endD
 	if err != nil {
 		return nil, fmt.Errorf("failed to get moving averages: %w", err)
 	}
+	fmt.Println(movingAverages)
 
 	var movingAvg float64
 	if len(movingAverages) > 0 {
@@ -117,7 +118,7 @@ func (as *AnalyticsService) AnalyzeMood(userID string, startDate time.Time, endD
 		StdDeviation:       standardDeviation,
 		Stability:          stability,
 		AvgRating:          avgMoodRating,
-		TagStats:           mtfPeriod,
+		TopTagOverall:      utils.TopTagStat(mtfPeriod),
 		TopTagPositiveDays: utils.TopTagStat(mtfPositiveDays),
 		TopTagNegativeDays: utils.TopTagStat(mtfNegativeDays),
 		TopTagNeutralDays:  utils.TopTagStat(mtfNeutralDays),
@@ -193,18 +194,18 @@ func (as *AnalyticsService) AnalyzeSleep(userID string, startDate time.Time, end
 	}
 
 	sleepMetric := &model.SleepMetric{
-		UserID:               userID,
-		Granularity:          granularity,
-		StartDate:            startDate,
-		EndDate:              endDate,
-		AvgSleepHours:        avgSleepHours,
-		MovingAvg:            movingAvg,
-		SleepTrend:           sleepTrend,
-		StdDeviation:         standardDeviation,
-		Stability:            stability,
-		BestSleepDay:         bestSleepDay,
-		WorstSleepDay:        worstSleepDay,
-		SleepQualityTagStats: topSleepQualityTags,
+		UserID:             userID,
+		Granularity:        granularity,
+		StartDate:          startDate,
+		EndDate:            endDate,
+		AvgSleepHours:      avgSleepHours,
+		MovingAvg:          movingAvg,
+		SleepTrend:         sleepTrend,
+		StdDeviation:       standardDeviation,
+		Stability:          stability,
+		BestSleepDay:       bestSleepDay,
+		WorstSleepDay:      worstSleepDay,
+		TopTagSleepQuality: utils.TopTagStat(topSleepQualityTags),
 	}
 
 	return sleepMetric, nil

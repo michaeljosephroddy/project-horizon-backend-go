@@ -2,13 +2,13 @@ package repository
 
 import (
 	"database/sql"
-	"strings"
 	"encoding/json"
 	"fmt"
 	"math"
-	"time"
 	"slices"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/model"
 )

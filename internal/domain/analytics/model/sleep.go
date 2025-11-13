@@ -16,18 +16,18 @@ type SleepLog struct {
 
 // Sleep Metric
 type SleepMetric struct {
-	UserID               string    `json:"userID"`
-	Granularity          string    `json:"granularity"`
-	StartDate            time.Time `json:"startDate"`
-	EndDate              time.Time `json:"endDate"`
-	AvgSleepHours        float64   `json:"avgSleepHours"`
-	MovingAvg            float64   `json:"movingAvg"`
-	SleepTrend           string    `json:"sleepTrend"`
-	StdDeviation         float64   `json:"stdDeviation"`
-	Stability            string    `json:"stability"`
-	BestSleepDay         string    `json:"bestSleepDay"`
-	WorstSleepDay        string    `json:"worstSleepDay"`
-	SleepQualityTagStats []TagStat `json:"sleepQualityTagStats"`
+	UserID             string    `json:"userID"`
+	Granularity        string    `json:"granularity"`
+	StartDate          time.Time `json:"startDate"`
+	EndDate            time.Time `json:"endDate"`
+	AvgSleepHours      float64   `json:"avgSleepHours"`
+	MovingAvg          float64   `json:"movingAvg"`
+	SleepTrend         string    `json:"sleepTrend"`
+	StdDeviation       float64   `json:"stdDeviation"`
+	Stability          string    `json:"stability"`
+	BestSleepDay       string    `json:"bestSleepDay"`
+	WorstSleepDay      string    `json:"worstSleepDay"`
+	TopTagSleepQuality TagStat   `json:"topTagSleepQuality"`
 }
 
 type DayOfWeekSleepPattern struct {
