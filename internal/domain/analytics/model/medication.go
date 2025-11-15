@@ -22,7 +22,7 @@ type MedicationLog struct {
 
 // MedicationMetric represents comprehensive medication analytics
 type MedicationMetric struct {
-	UserID          string            `json:"userID"`
+	UserID          int               `json:"userID"`
 	Granularity     string            `json:"granularity"`
 	StartDate       time.Time         `json:"startDate"`
 	EndDate         time.Time         `json:"endDate"`

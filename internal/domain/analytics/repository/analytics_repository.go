@@ -17,9 +17,9 @@ type AnalyticsRepository struct {
 	db *sql.DB
 }
 
-func NewAnalyticsRepository(dbConnection *sql.DB) *AnalyticsRepository {
+func NewAnalyticsRepository(db *sql.DB) IAnalyticsRepository {
 	return &AnalyticsRepository{
-		db: dbConnection,
+		db: db,
 	}
 }
 
@@ -28,7 +28,7 @@ const (
 	dateTimeLayout = "2006-01-02 15:04:05"
 )
 
-func (ar *AnalyticsRepository) Days(userID string, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) ([]model.Day, error) {
+func (ar *AnalyticsRepository) Days(userID int, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) ([]model.Day, error) {
 	// Build the query with the operator
 	query := fmt.Sprintf(`WITH mood_data AS
 (
@@ -195,7 +195,7 @@ ORDER BY date DESC,
 	return days, nil
 }
 
-func (ar *AnalyticsRepository) StandardDeviation(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (ar *AnalyticsRepository) StandardDeviation(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	query := `SELECT Stddev_pop(mood_rating) AS std_dev
 FROM   mood_log
 WHERE  user_id = ?
@@ -227,7 +227,7 @@ WHERE  user_id = ?
 	return standardDeviation.Float64, nil
 }
 
-func (ar *AnalyticsRepository) MovingAverages(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
+func (ar *AnalyticsRepository) MovingAverages(userID int, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
 	query := fmt.Sprintf(`WITH first_query
      AS (SELECT DATE(created_at) AS DATE,
                 Avg(mood_rating) AS daily_avg
@@ -286,7 +286,7 @@ ORDER  BY DATE;`, numDaysPreceding)
 	return movingAverages, nil
 }
 
-func (ar *AnalyticsRepository) MoodLogs(userID string, startDate time.Time, endDate time.Time) ([]model.MoodLog, error) {
+func (ar *AnalyticsRepository) MoodLogs(userID int, startDate time.Time, endDate time.Time) ([]model.MoodLog, error) {
 	query := `SELECT *
 FROM   mood_log
 WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?;`
@@ -327,7 +327,7 @@ WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?;`
 	return moodLogs, nil
 }
 
-func (ar *AnalyticsRepository) MoodTagFrequencies(userID string, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
+func (ar *AnalyticsRepository) MoodTagFrequencies(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
 	query := `WITH first_query
      AS (SELECT ml.mood_log_id,
                 mlmt.mood_tag_id,
@@ -396,7 +396,7 @@ FROM   second_query;`
 	return moodTagFrequencies, nil
 }
 
-func (ar *AnalyticsRepository) AvgMoodRating(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (ar *AnalyticsRepository) AvgMoodRating(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	query := `WITH first_query
      AS (SELECT Date(created_at) AS date,
                 AVG(mood_rating) AS daily_avg_rating
@@ -435,7 +435,7 @@ FROM   second_query;`
 
 	return avgMoodRatingPeriod.Float64, nil
 }
-func (ar *AnalyticsRepository) AvgSleepHours(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (ar *AnalyticsRepository) AvgSleepHours(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	query := `SELECT Avg(hours_slept) AS avg_sleep_hours
 FROM   sleep_log
 WHERE  user_id = ?
@@ -467,7 +467,7 @@ WHERE  user_id = ?
 	return avgSleepHours.Float64, nil
 }
 
-func (ar *AnalyticsRepository) MovingAvgSleep(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
+func (ar *AnalyticsRepository) MovingAvgSleep(userID int, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
 	query := fmt.Sprintf(`WITH first_query
      AS (SELECT sleep_date AS DATE,
                 Avg(hours_slept) AS avg_sleep_hours 
@@ -529,7 +529,7 @@ ORDER  BY DATE;`, numDaysPreceding)
 	return movingAverages, nil
 }
 
-func (ar *AnalyticsRepository) SleepStandardDeviation(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (ar *AnalyticsRepository) SleepStandardDeviation(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	query := `SELECT Stddev_pop(hours_slept) AS std_dev
 FROM   sleep_log
 WHERE  user_id = ?
@@ -560,7 +560,7 @@ WHERE  user_id = ?
 	return standardDeviation.Float64, nil
 }
 
-func (ar *AnalyticsRepository) SleepQualityTagStat(userID string, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
+func (ar *AnalyticsRepository) SleepQualityTagStat(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
 	query := `WITH tag_counts AS (
     SELECT 
         sqt.name AS tag_name,
@@ -620,7 +620,7 @@ ORDER BY tag_count ASC;`
 	return sleepTagFrequencies, nil
 }
 
-func (ar *AnalyticsRepository) SleepLogs(userID string, startDate time.Time, endDate time.Time) ([]model.SleepLog, error) {
+func (ar *AnalyticsRepository) SleepLogs(userID int, startDate time.Time, endDate time.Time) ([]model.SleepLog, error) {
 	query := `SELECT sl.sleep_log_id,
        sl.user_id,
        sl.hours_slept,
@@ -696,7 +696,7 @@ ORDER  BY sl.sleep_date;`
 	return sleepLogs, nil
 }
 
-func (ar *AnalyticsRepository) DayOfWeekSleepPatterns(userID string, startDate time.Time, endDate time.Time) ([]model.DayOfWeekSleepPattern, error) {
+func (ar *AnalyticsRepository) DayOfWeekSleepPatterns(userID int, startDate time.Time, endDate time.Time) ([]model.DayOfWeekSleepPattern, error) {
 	query := `SELECT
     DAYNAME(sleep_date) AS day_of_week,
     DAYOFWEEK(sleep_date) AS day_number,
@@ -742,7 +742,7 @@ ORDER BY day_number;`
 
 	return patterns, nil
 }
-func (ar *AnalyticsRepository) MedicationLogs(userID string, startDate, endDate time.Time) ([]model.MedicationLog, error) {
+func (ar *AnalyticsRepository) MedicationLogs(userID int, startDate, endDate time.Time) ([]model.MedicationLog, error) {
 	query := `SELECT 
 		ml.medication_log_id,
 		ml.user_id,
@@ -844,7 +844,7 @@ func (ar *AnalyticsRepository) MedicationLogs(userID string, startDate, endDate 
 }
 
 // OverviewStats gets high-level medication statistics
-func (ar *AnalyticsRepository) OverviewStats(userID string, startDate, endDate time.Time) (float64, error) {
+func (ar *AnalyticsRepository) OverviewStats(userID int, startDate, endDate time.Time) (float64, error) {
 	query := `SELECT 
 			COUNT(DISTINCT DATE(ml.taken_at)) as days_with_logs,
 			DATEDIFF(?, ?) + 1 as total_days,
@@ -878,7 +878,7 @@ func (ar *AnalyticsRepository) OverviewStats(userID string, startDate, endDate t
 }
 
 // MedicationDetailedStats returns comprehensive stats for each medication
-func (ar *AnalyticsRepository) MedicationDetailedStats(userID string, startDate, endDate time.Time) ([]model.MedicationStats, error) {
+func (ar *AnalyticsRepository) MedicationDetailedStats(userID int, startDate, endDate time.Time) ([]model.MedicationStats, error) {
 	// First, get basic stats per medication
 	query := `SELECT 
 			m.medication_id,
@@ -943,7 +943,7 @@ func (ar *AnalyticsRepository) MedicationDetailedStats(userID string, startDate,
 	return stats, rows.Err()
 }
 
-func (ar *AnalyticsRepository) getTimingStats(userID string, medID int, startDate, endDate time.Time) (model.TimingStats, error) {
+func (ar *AnalyticsRepository) getTimingStats(userID int, medID int, startDate, endDate time.Time) (model.TimingStats, error) {
 	query := `SELECT 
 				TIME_FORMAT(SEC_TO_TIME(AVG(TIME_TO_SEC(TIME(ml.taken_at)))), '%H:%i:%s') as avg_time,
 				STD(TIME_TO_SEC(TIME(ml.taken_at))) / 60 as std_dev_minutes,
@@ -998,7 +998,7 @@ func formatTimingDescription(avgTime string, stdDevMinutes float64) string {
 	return fmt.Sprintf("%s ± %d minutes", timeStr, stdDevRounded)
 }
 
-func (ar *AnalyticsRepository) getStreaks(userID string, medID int, startDate, endDate time.Time) (int, int, error) {
+func (ar *AnalyticsRepository) getStreaks(userID int, medID int, startDate, endDate time.Time) (int, int, error) {
 	query := `SELECT DISTINCT DATE(ml.taken_at) as log_date
 		FROM medication_log ml
 		JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id

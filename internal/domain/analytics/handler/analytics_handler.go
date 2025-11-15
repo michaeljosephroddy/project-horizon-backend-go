@@ -3,10 +3,11 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	common_utils "github.com/michaeljosephroddy/project-horizon-backend-go/internal/common/utils"
+	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/common/utils"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/service"
 )
 
@@ -21,14 +22,20 @@ func NewAnalyticsHandler(analyticsService *service.AnalyticsService) *AnalyticsH
 }
 
 // GetMoodMetrics handles GET /analytics/users/:userID/mood
-func (handler *AnalyticsHandler) GetMoodMetrics(c *gin.Context) {
-	userID, startDate, endDate, err := handler.extractRequestParams(c)
+func (ah *AnalyticsHandler) GetMoodMetrics(c *gin.Context) {
+	userID, startDate, endDate, err := ah.extractRequestParams(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	moodMetrics, err := handler.analyticsService.AnalyzeMood(userID, startDate, endDate)
+	// Authorization check - ensure user can only access their own data
+	if !ah.authorizeUserAccess(c, userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	moodMetrics, err := ah.analyticsService.AnalyzeMood(userID, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve mood metrics"})
 		return
@@ -38,14 +45,20 @@ func (handler *AnalyticsHandler) GetMoodMetrics(c *gin.Context) {
 }
 
 // GetSleepMetrics handles GET /analytics/users/:userID/sleep
-func (handler *AnalyticsHandler) GetSleepMetrics(c *gin.Context) {
-	userID, startDate, endDate, err := handler.extractRequestParams(c)
+func (ah *AnalyticsHandler) GetSleepMetrics(c *gin.Context) {
+	userID, startDate, endDate, err := ah.extractRequestParams(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	sleepMetrics, err := handler.analyticsService.AnalyzeSleep(userID, startDate, endDate)
+	// Authorization check
+	if !ah.authorizeUserAccess(c, userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	sleepMetrics, err := ah.analyticsService.AnalyzeSleep(userID, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve sleep metrics"})
 		return
@@ -55,14 +68,20 @@ func (handler *AnalyticsHandler) GetSleepMetrics(c *gin.Context) {
 }
 
 // GetMedicationMetrics handles GET /analytics/users/:userID/medication
-func (handler *AnalyticsHandler) GetMedicationMetrics(c *gin.Context) {
-	userID, startDate, endDate, err := handler.extractRequestParams(c)
+func (ah *AnalyticsHandler) GetMedicationMetrics(c *gin.Context) {
+	userID, startDate, endDate, err := ah.extractRequestParams(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	medicationMetrics, err := handler.analyticsService.AnalyzeMedication(userID, startDate, endDate)
+	// Authorization check
+	if !ah.authorizeUserAccess(c, userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
+		return
+	}
+
+	medicationMetrics, err := ah.analyticsService.AnalyzeMedication(userID, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve medication metrics"})
 		return
@@ -71,19 +90,38 @@ func (handler *AnalyticsHandler) GetMedicationMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, medicationMetrics)
 }
 
-func (handler *AnalyticsHandler) extractRequestParams(c *gin.Context) (string, time.Time, time.Time, error) {
-	userID := c.Param("userID")
-	if userID == "" {
-		return "", time.Time{}, time.Time{}, fmt.Errorf("userID is required")
+// authorizeUserAccess checks if the authenticated user can access the requested user's data
+func (ah *AnalyticsHandler) authorizeUserAccess(c *gin.Context, requestedUserID int) bool {
+	// Get authenticated user ID from context (set by auth middleware)
+	authenticatedUserID, exists := c.Get("user_id")
+	if !exists {
+		return false
+	}
+
+	// Convert to int for comparison
+	authUserID, ok := authenticatedUserID.(int)
+	if !ok {
+		return false
+	}
+
+	// Users can only access their own data
+	return authUserID == requestedUserID
+}
+
+func (ah *AnalyticsHandler) extractRequestParams(c *gin.Context) (int, time.Time, time.Time, error) {
+	userID, _ := strconv.Atoi(c.Param("userID"))
+	if userID == 0 {
+		return 0, time.Time{}, time.Time{}, fmt.Errorf("userID is required")
 	}
 
 	startDate := c.Query("startDate")
 	endDate := c.Query("endDate")
 	if startDate == "" || endDate == "" {
-		return "", time.Time{}, time.Time{}, fmt.Errorf("startDate and endDate are required")
+		return 0, time.Time{}, time.Time{}, fmt.Errorf("startDate and endDate are required")
 	}
 
-	startDateParsed, endDateParsed := common_utils.ParseDates(startDate, endDate)
+	startDateParsed := utils.ParseDate(startDate)
+	endDateParsed := utils.ParseDate(endDate)
 
 	return userID, startDateParsed, endDateParsed, nil
 }

@@ -16,21 +16,21 @@ type MockAnalyticsRepository struct {
 
 // Ensure MockAnalyticsRepository implements the interface
 var _ interface {
-	MovingAverages(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error)
-	StandardDeviation(userID string, startDate time.Time, endDate time.Time) (float64, error)
-	AvgMoodRating(userID string, startDate time.Time, endDate time.Time) (float64, error)
-	MoodTagFrequencies(userID string, startDate time.Time, endDate time.Time) ([]model.TagStat, error)
-	Days(userID string, startDate time.Time, endDate time.Time, operator string, threshold string, category string, tagPercentage string) ([]model.Day, error)
-	AvgSleepHours(userID string, startDate time.Time, endDate time.Time) (float64, error)
-	MovingAvgSleep(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error)
-	SleepStandardDeviation(userID string, startDate time.Time, endDate time.Time) (float64, error)
-	SleepQualityTagStat(userID string, startDate time.Time, endDate time.Time) ([]model.TagStat, error)
-	DayOfWeekSleepPatterns(userID string, startDate time.Time, endDate time.Time) ([]model.DayOfWeekSleepPattern, error)
-	OverviewStats(userID string, startDate time.Time, endDate time.Time) (float64, error)
-	MedicationDetailedStats(userID string, startDate time.Time, endDate time.Time) ([]model.MedicationStats, error)
+	MovingAverages(userID int, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error)
+	StandardDeviation(userID int, startDate time.Time, endDate time.Time) (float64, error)
+	AvgMoodRating(userID int, startDate time.Time, endDate time.Time) (float64, error)
+	MoodTagFrequencies(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error)
+	Days(userID int, startDate time.Time, endDate time.Time, operator string, threshold string, category string, tagPercentage string) ([]model.Day, error)
+	AvgSleepHours(userID int, startDate time.Time, endDate time.Time) (float64, error)
+	MovingAvgSleep(userID int, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error)
+	SleepStandardDeviation(userID int, startDate time.Time, endDate time.Time) (float64, error)
+	SleepQualityTagStat(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error)
+	DayOfWeekSleepPatterns(userID int, startDate time.Time, endDate time.Time) ([]model.DayOfWeekSleepPattern, error)
+	OverviewStats(userID int, startDate time.Time, endDate time.Time) (float64, error)
+	MedicationDetailedStats(userID int, startDate time.Time, endDate time.Time) ([]model.MedicationStats, error)
 } = (*MockAnalyticsRepository)(nil)
 
-func (m *MockAnalyticsRepository) MovingAverages(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
+func (m *MockAnalyticsRepository) MovingAverages(userID int, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
 	args := m.Called(userID, startDate, endDate, numDaysPreceding)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -38,17 +38,17 @@ func (m *MockAnalyticsRepository) MovingAverages(userID string, startDate time.T
 	return args.Get(0).([]model.MovingAverage), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) StandardDeviation(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (m *MockAnalyticsRepository) StandardDeviation(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	args := m.Called(userID, startDate, endDate)
 	return args.Get(0).(float64), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) AvgMoodRating(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (m *MockAnalyticsRepository) AvgMoodRating(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	args := m.Called(userID, startDate, endDate)
 	return args.Get(0).(float64), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) MoodTagFrequencies(userID string, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
+func (m *MockAnalyticsRepository) MoodTagFrequencies(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
 	args := m.Called(userID, startDate, endDate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -56,7 +56,7 @@ func (m *MockAnalyticsRepository) MoodTagFrequencies(userID string, startDate ti
 	return args.Get(0).([]model.TagStat), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) Days(userID string, startDate time.Time, endDate time.Time, operator string, threshold string, category string, tagPercentage string) ([]model.Day, error) {
+func (m *MockAnalyticsRepository) Days(userID int, startDate time.Time, endDate time.Time, operator string, threshold string, category string, tagPercentage string) ([]model.Day, error) {
 	args := m.Called(userID, startDate, endDate, operator, threshold, category, tagPercentage)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -64,12 +64,12 @@ func (m *MockAnalyticsRepository) Days(userID string, startDate time.Time, endDa
 	return args.Get(0).([]model.Day), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) AvgSleepHours(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (m *MockAnalyticsRepository) AvgSleepHours(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	args := m.Called(userID, startDate, endDate)
 	return args.Get(0).(float64), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) MovingAvgSleep(userID string, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
+func (m *MockAnalyticsRepository) MovingAvgSleep(userID int, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
 	args := m.Called(userID, startDate, endDate, numDaysPreceding)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -77,12 +77,12 @@ func (m *MockAnalyticsRepository) MovingAvgSleep(userID string, startDate time.T
 	return args.Get(0).([]model.MovingAverage), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) SleepStandardDeviation(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (m *MockAnalyticsRepository) SleepStandardDeviation(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	args := m.Called(userID, startDate, endDate)
 	return args.Get(0).(float64), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) SleepQualityTagStat(userID string, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
+func (m *MockAnalyticsRepository) SleepQualityTagStat(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
 	args := m.Called(userID, startDate, endDate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -90,7 +90,7 @@ func (m *MockAnalyticsRepository) SleepQualityTagStat(userID string, startDate t
 	return args.Get(0).([]model.TagStat), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) DayOfWeekSleepPatterns(userID string, startDate time.Time, endDate time.Time) ([]model.DayOfWeekSleepPattern, error) {
+func (m *MockAnalyticsRepository) DayOfWeekSleepPatterns(userID int, startDate time.Time, endDate time.Time) ([]model.DayOfWeekSleepPattern, error) {
 	args := m.Called(userID, startDate, endDate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -98,12 +98,12 @@ func (m *MockAnalyticsRepository) DayOfWeekSleepPatterns(userID string, startDat
 	return args.Get(0).([]model.DayOfWeekSleepPattern), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) OverviewStats(userID string, startDate time.Time, endDate time.Time) (float64, error) {
+func (m *MockAnalyticsRepository) OverviewStats(userID int, startDate time.Time, endDate time.Time) (float64, error) {
 	args := m.Called(userID, startDate, endDate)
 	return args.Get(0).(float64), args.Error(1)
 }
 
-func (m *MockAnalyticsRepository) MedicationDetailedStats(userID string, startDate time.Time, endDate time.Time) ([]model.MedicationStats, error) {
+func (m *MockAnalyticsRepository) MedicationDetailedStats(userID int, startDate time.Time, endDate time.Time) ([]model.MedicationStats, error) {
 	args := m.Called(userID, startDate, endDate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -116,7 +116,7 @@ func TestAnalyzeMood_Success(t *testing.T) {
 	mockRepo := new(MockAnalyticsRepository)
 	service := NewAnalyticsService(mockRepo)
 
-	userID := "user123"
+	userID := 123
 	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2024, 1, 7, 0, 0, 0, 0, time.UTC)
 
@@ -158,7 +158,7 @@ func TestAnalyzeSleep_Success(t *testing.T) {
 	mockRepo := new(MockAnalyticsRepository)
 	service := NewAnalyticsService(mockRepo)
 
-	userID := "user123"
+	userID := 123
 	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2024, 1, 7, 0, 0, 0, 0, time.UTC)
 
@@ -201,7 +201,7 @@ func TestAnalyzeMedication_Success(t *testing.T) {
 	mockRepo := new(MockAnalyticsRepository)
 	service := NewAnalyticsService(mockRepo)
 
-	userID := "user123"
+	userID := 123
 	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2024, 1, 7, 0, 0, 0, 0, time.UTC)
 

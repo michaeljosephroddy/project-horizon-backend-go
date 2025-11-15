@@ -4,7 +4,7 @@ import "time"
 
 // Mood Metric
 type MoodMetric struct {
-	UserID             string    `json:"userId"`
+	UserID             int       `json:"userId"`
 	Granularity        string    `json:"granularity"`
 	StartDate          time.Time `json:"startDate"`
 	EndDate            time.Time `json:"endDate"`
@@ -23,7 +23,7 @@ type MoodMetric struct {
 // Mood Log
 type MoodLog struct {
 	MoodLogID  int       `json:"moodLogId"`
-	UserID     string    `json:"userId"`
+	UserID     int       `json:"userId"`
 	MoodRating int       `json:"moodRating"`
 	Note       string    `json:"note"`
 	CreatedAt  time.Time `json:"createdAt"`

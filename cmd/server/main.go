@@ -7,15 +7,20 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/app/router"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/database"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/handler"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/repository"
-	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/service"
+
+	analyticshandler "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/handler"
+	analyticsrepository "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/repository"
+	analyticsservice "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/service"
+	authhandler "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/auth/handler"
+	authservice "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/auth/service"
+	usersrepository "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/users/repository"
 )
 
 func main() {
 	// Add logging
 	log.Println("Starting Project Horizon Backend...")
 
+	// Initialize database connection
 	dbConnection, err := database.NewDatabaseConnection()
 	if err != nil {
 		panic(fmt.Sprintf("Database connection failed: %v", err))
@@ -23,16 +28,21 @@ func main() {
 	defer dbConnection.Close()
 	log.Println("Database connected successfully")
 
-	analyticsRepository := repository.NewAnalyticsRepository(dbConnection)
+	// Initialize Analytics domain
+	analyticsRepository := analyticsrepository.NewAnalyticsRepository(dbConnection)
+	analyticsService := analyticsservice.NewAnalyticsService(analyticsRepository)
+	analyticsHandler := analyticshandler.NewAnalyticsHandler(analyticsService)
 
-	analyticsService := service.NewAnalyticsService(analyticsRepository)
-	analyticsHandler := handler.NewAnalyticsHandler(analyticsService)
+	// Initialize Auth domain
+	userRepository := usersrepository.NewUserRepository(dbConnection)
+	authService := authservice.NewAuthService(userRepository)
+	authHandler := authhandler.NewAuthHandler(authService)
 
 	// Create Gin router
 	r := gin.Default() // This includes logger & recovery middleware
 
-	// Setup routes
-	router.SetupRoutes(r, analyticsHandler)
+	// Setup routes (pass all required handlers and services)
+	router.SetupRoutes(r, analyticsHandler, authHandler, authService)
 
 	log.Println("Routes registered, starting server on :9095...")
 

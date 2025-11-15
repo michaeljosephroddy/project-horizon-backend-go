@@ -7,7 +7,7 @@ import (
 )
 
 func NewDatabaseConnection() (*sql.DB, error) {
-	db, err := sql.Open("mysql", "demouser:demouserpassword@/project_horizon?")
+	db, err := sql.Open("mysql", "demouser:demouserpassword@/project_horizon?parseTime=true")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}

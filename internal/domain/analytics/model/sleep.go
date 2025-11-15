@@ -4,8 +4,8 @@ import "time"
 
 // Sleep Log
 type SleepLog struct {
-	SleepLogID      string    `json:"sleepLogId"`
-	UserID          string    `json:"userId"`
+	SleepLogID      int       `json:"sleepLogId"`
+	UserID          int       `json:"userId"`
 	HoursSlept      float64   `json:"hoursSlept"`
 	SleepQualityTag string    `json:"sleepQualityTag"`
 	Note            string    `json:"note"`
@@ -16,7 +16,7 @@ type SleepLog struct {
 
 // Sleep Metric
 type SleepMetric struct {
-	UserID             string    `json:"userID"`
+	UserID             int       `json:"userID"`
 	Granularity        string    `json:"granularity"`
 	StartDate          time.Time `json:"startDate"`
 	EndDate            time.Time `json:"endDate"`

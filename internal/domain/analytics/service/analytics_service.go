@@ -12,16 +12,16 @@ import (
 )
 
 type AnalyticsService struct {
-	analyticsRepository repository.AnalyticsRepositoryInterface
+	analyticsRepository repository.IAnalyticsRepository
 }
 
-func NewAnalyticsService(analyticsRepository repository.AnalyticsRepositoryInterface) *AnalyticsService {
+func NewAnalyticsService(analyticsRepository repository.IAnalyticsRepository) *AnalyticsService {
 	return &AnalyticsService{
 		analyticsRepository: analyticsRepository,
 	}
 }
 
-func (as *AnalyticsService) AnalyzeMood(userID string, startDate time.Time, endDate time.Time) (*model.MoodMetric, error) {
+func (as *AnalyticsService) AnalyzeMood(userID int, startDate time.Time, endDate time.Time) (*model.MoodMetric, error) {
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	numDaysPreceding := strconv.Itoa(numDays)
@@ -128,7 +128,7 @@ func (as *AnalyticsService) AnalyzeMood(userID string, startDate time.Time, endD
 	return moodMetrics, nil
 }
 
-func (as *AnalyticsService) AnalyzeSleep(userID string, startDate time.Time, endDate time.Time) (*model.SleepMetric, error) {
+func (as *AnalyticsService) AnalyzeSleep(userID int, startDate time.Time, endDate time.Time) (*model.SleepMetric, error) {
 	avgSleepHours, err := as.analyticsRepository.AvgSleepHours(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get average sleep hours: %w", err)
@@ -211,7 +211,7 @@ func (as *AnalyticsService) AnalyzeSleep(userID string, startDate time.Time, end
 	return sleepMetric, nil
 }
 
-func (as *AnalyticsService) AnalyzeMedication(userID string, startDate time.Time, endDate time.Time) (*model.MedicationMetric, error) {
+func (as *AnalyticsService) AnalyzeMedication(userID int, startDate time.Time, endDate time.Time) (*model.MedicationMetric, error) {
 	numDays := utils.NumDaysBetween(startDate, endDate)
 	granularity := utils.Granularity(numDays)
 
