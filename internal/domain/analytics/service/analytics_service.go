@@ -40,7 +40,7 @@ func (as *AnalyticsService) AnalyzeMood(userID int, startDate time.Time, endDate
 
 	moodTrend := utils.Trend(movingAverages)
 
-	standardDeviation, err := as.analyticsRepository.StandardDeviation(userID, startDate, endDate)
+	standardDeviation, err := as.analyticsRepository.StandardDeviationMood(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get standard deviation: %w", err)
 	}
@@ -58,7 +58,7 @@ func (as *AnalyticsService) AnalyzeMood(userID int, startDate time.Time, endDate
 		return nil, fmt.Errorf("failed to get average mood rating: %w", err)
 	}
 
-	mtfPeriod, err := as.analyticsRepository.MoodTagFrequencies(userID, startDate, endDate)
+	mtfPeriod, err := as.analyticsRepository.MoodTagStats(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mood tag frequencies: %w", err)
 	}
@@ -149,7 +149,7 @@ func (as *AnalyticsService) AnalyzeSleep(userID int, startDate time.Time, endDat
 
 	sleepTrend := utils.Trend(movingAverages)
 
-	standardDeviation, err := as.analyticsRepository.SleepStandardDeviation(userID, startDate, endDate)
+	standardDeviation, err := as.analyticsRepository.StandardDeviationSleep(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sleep standard deviation: %w", err)
 	}
@@ -163,7 +163,7 @@ func (as *AnalyticsService) AnalyzeSleep(userID int, startDate time.Time, endDat
 
 	granularity := utils.Granularity(numDays)
 
-	topSleepQualityTags, err := as.analyticsRepository.SleepQualityTagStat(userID, startDate, endDate)
+	topSleepQualityTags, err := as.analyticsRepository.SleepQualityTagStats(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sleep quality tag stats: %w", err)
 	}
@@ -216,7 +216,7 @@ func (as *AnalyticsService) AnalyzeMedication(userID int, startDate time.Time, e
 	granularity := utils.Granularity(numDays)
 
 	// Get overview statistics
-	adherenceRate, err := as.analyticsRepository.OverviewStats(userID, startDate, endDate)
+	adherenceRate, err := as.analyticsRepository.MedicationOverviewStats(userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get overview stats: %w", err)
 	}

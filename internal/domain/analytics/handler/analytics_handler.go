@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -38,6 +39,7 @@ func (ah *AnalyticsHandler) GetMoodMetrics(c *gin.Context) {
 	moodMetrics, err := ah.analyticsService.AnalyzeMood(userID, startDate, endDate)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve mood metrics"})
+		log.Printf("%w", err)
 		return
 	}
 

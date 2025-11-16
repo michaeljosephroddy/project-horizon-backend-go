@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -28,64 +29,19 @@ const (
 	dateTimeLayout = "2006-01-02 15:04:05"
 )
 
+var home = os.Getenv("HOME")
+var queriesDir = "/repos/project-horizon-backend-go/internal/domain/analytics/repository/queries/"
+
 func (ar *AnalyticsRepository) Days(userID int, startDate time.Time, endDate time.Time, operator string, moodRating string, moodCategoryID string, targetPercentage string) ([]model.Day, error) {
-	// Build the query with the operator
-	query := fmt.Sprintf(`WITH mood_data AS
-(
-         SELECT   Date(ml.created_at) AS date,
-                  ml.created_at,
-                  ml.mood_log_id,
-                  ml.mood_rating,
-                  ml.note,
-                  group_concat(mt.NAME order BY mt.NAME separator ', ')              AS mood_tags,
-                  group_concat(mt.mood_tag_id ORDER BY mt.mood_tag_id separator ',') AS mood_tag_ids,
-                  sum(
-                  CASE
-                           WHEN mt.mood_category_id = ? THEN 1
-                           ELSE 0
-                  END)                  AS entry_target_count,
-                  count(mt.mood_tag_id) AS entry_total_count
-         FROM     mood_log ml
-         JOIN     mood_log_mood_tag mlmt
-         ON       ml.mood_log_id = mlmt.mood_log_id
-         JOIN     mood_tag mt
-         ON       mlmt.mood_tag_id = mt.mood_tag_id
-         WHERE    ml.user_id = ?
-         AND      date(ml.created_at) BETWEEN ? AND      ?
-         GROUP BY date(ml.created_at),
-                  ml.mood_log_id,
-                  ml.created_at,
-                  ml.mood_rating,
-                  ml.note ), daily_stats AS
-(
-       SELECT date,
-              created_at,
-              mood_log_id,
-              mood_rating,
-              note,
-              mood_tags,
-              mood_tag_ids,
-              avg(mood_rating) OVER (partition BY        date)                                                                        AS daily_avg_rating,
-              sum(entry_target_count) OVER (partition BY date)                                                                        AS daily_target_count,
-              sum(entry_total_count) OVER (partition BY  date)                                                                        AS daily_total_count,
-              (sum(entry_target_count) OVER (partition BY date) * 100.0 / NULLIF(sum(entry_total_count) OVER (partition BY date), 0)) AS daily_target_percentage
-       FROM   mood_data )
-SELECT   date,
-         created_at,
-         mood_log_id,
-         mood_rating,
-         note,
-         mood_tags,
-         mood_tag_ids,
-         daily_avg_rating,
-         daily_target_count,
-         daily_total_count,
-         COALESCE(daily_target_percentage, 0) AS daily_target_percentage
-FROM     daily_stats
-WHERE    daily_avg_rating %s ?
-AND      COALESCE(daily_target_percentage, 0) >= ?
-ORDER BY date DESC,
-         created_at DESC;`, operator)
+
+	fileName := "days.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.Day, 0, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := fmt.Sprintf(string(content), operator)
 
 	// Execute with parameters in correct order
 	rows, err := ar.db.Query(query, moodCategoryID, userID, startDate, endDate, moodRating, targetPercentage)
@@ -195,11 +151,15 @@ ORDER BY date DESC,
 	return days, nil
 }
 
-func (ar *AnalyticsRepository) StandardDeviation(userID int, startDate time.Time, endDate time.Time) (float64, error) {
-	query := `SELECT Stddev_pop(mood_rating) AS std_dev
-FROM   mood_log
-WHERE  user_id = ?
-       AND Date(created_at) BETWEEN ? AND ?;`
+func (ar *AnalyticsRepository) StandardDeviationMood(userID int, startDate time.Time, endDate time.Time) (float64, error) {
+	fileName := "standard_deviation.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -228,23 +188,14 @@ WHERE  user_id = ?
 }
 
 func (ar *AnalyticsRepository) MovingAverages(userID int, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
-	query := fmt.Sprintf(`WITH first_query
-     AS (SELECT DATE(created_at) AS DATE,
-                Avg(mood_rating) AS daily_avg
-         FROM   mood_log
-         WHERE  user_id = ?
-                AND DATE(created_at) BETWEEN ? AND ?
-         GROUP  BY DATE(created_at)),
-     second_query
-     AS (SELECT DATE,
-                Avg(daily_avg)
-                  OVER(
-                    ORDER BY DATE ROWS BETWEEN %s preceding AND CURRENT ROW) AS
-                   moving_avg
-         FROM   first_query)
-SELECT *
-FROM   second_query
-ORDER  BY DATE;`, numDaysPreceding)
+	fileName := "moving_averages.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.MovingAverage, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := fmt.Sprintf(string(content), numDaysPreceding)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -287,9 +238,15 @@ ORDER  BY DATE;`, numDaysPreceding)
 }
 
 func (ar *AnalyticsRepository) MoodLogs(userID int, startDate time.Time, endDate time.Time) ([]model.MoodLog, error) {
-	query := `SELECT *
-FROM   mood_log
-WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?;`
+	// Load query file
+	fileName := "mood_logs.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.MoodLog, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -327,36 +284,16 @@ WHERE  user_id = ? and DATE(created_at) BETWEEN ? AND ?;`
 	return moodLogs, nil
 }
 
-func (ar *AnalyticsRepository) MoodTagFrequencies(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
-	query := `WITH first_query
-     AS (SELECT ml.mood_log_id,
-                mlmt.mood_tag_id,
-                mt.NAME,
-                Date(ml.created_at)    AS date,
-                Count(mlmt.mood_tag_id) AS mood_tag_id_count
-         FROM   mood_log ml
-                INNER JOIN mood_log_mood_tag mlmt
-                        ON ml.mood_log_id = mlmt.mood_log_id
-                INNER JOIN mood_tag mt
-                        ON mlmt.mood_tag_id = mt.mood_tag_id
-         WHERE  ml.user_id = ?
-                AND Date(ml.created_at) BETWEEN ? AND ?
-         GROUP  BY mlmt.mood_tag_id,
-                   mt.NAME,
-                   ml.mood_log_id,
-                   Date(ml.created_at)),
-     second_query
-     AS (SELECT NAME,
-                Sum(mood_tag_id_count)                      AS mood_tag_id_count
-                ,
-                ( Sum(mood_tag_id_count) / Sum(Sum(
-                  mood_tag_id_count))
-                                             OVER() ) * 100 AS percentage
-         FROM   first_query
-         GROUP  BY mood_tag_id,
-                   NAME)
-SELECT *
-FROM   second_query;`
+func (ar *AnalyticsRepository) MoodTagStats(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
+	// Load query file
+	fileName := "mood_tag_stats.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.TagStat, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -397,18 +334,15 @@ FROM   second_query;`
 }
 
 func (ar *AnalyticsRepository) AvgMoodRating(userID int, startDate time.Time, endDate time.Time) (float64, error) {
-	query := `WITH first_query
-     AS (SELECT Date(created_at) AS date,
-                AVG(mood_rating) AS daily_avg_rating
-         FROM   mood_log
-         WHERE  user_id = ? 
-                AND Date(created_at) BETWEEN ? AND ? 
-         GROUP  BY Date(created_at)),
-     second_query
-     AS (SELECT AVG(daily_avg_rating) AS period_mood_rating_avg
-         FROM   first_query)
-SELECT period_mood_rating_avg
-FROM   second_query;`
+	// Load query file
+	fileName := "avg_mood_rating.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -436,10 +370,15 @@ FROM   second_query;`
 	return avgMoodRatingPeriod.Float64, nil
 }
 func (ar *AnalyticsRepository) AvgSleepHours(userID int, startDate time.Time, endDate time.Time) (float64, error) {
-	query := `SELECT Avg(hours_slept) AS avg_sleep_hours
-FROM   sleep_log
-WHERE  user_id = ?
-       AND sleep_date BETWEEN ? AND ?;`
+	// Load query file
+	fileName := "avg_sleep_hours.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -468,23 +407,14 @@ WHERE  user_id = ?
 }
 
 func (ar *AnalyticsRepository) MovingAvgSleep(userID int, startDate time.Time, endDate time.Time, numDaysPreceding string) ([]model.MovingAverage, error) {
-	query := fmt.Sprintf(`WITH first_query
-     AS (SELECT sleep_date AS DATE,
-                Avg(hours_slept) AS avg_sleep_hours 
-         FROM   sleep_log
-         WHERE  user_id = ?
-                AND sleep_date BETWEEN ? AND ?
-	),
-     second_query
-     AS (SELECT DATE,
-                Avg(avg_sleep_hours)
-                  OVER(
-                    ORDER BY DATE ROWS BETWEEN %s preceding AND CURRENT ROW) AS
-                   moving_avg
-         FROM   first_query)
-SELECT *
-FROM   second_query
-ORDER  BY DATE;`, numDaysPreceding)
+	fileName := "moving_avg_sleep.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.MovingAverage, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := fmt.Sprintf(string(content), numDaysPreceding)
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query moving average sleep: %w", err)
@@ -529,11 +459,17 @@ ORDER  BY DATE;`, numDaysPreceding)
 	return movingAverages, nil
 }
 
-func (ar *AnalyticsRepository) SleepStandardDeviation(userID int, startDate time.Time, endDate time.Time) (float64, error) {
-	query := `SELECT Stddev_pop(hours_slept) AS std_dev
-FROM   sleep_log
-WHERE  user_id = ?
-       AND sleep_date BETWEEN ? AND ?;`
+func (ar *AnalyticsRepository) StandardDeviationSleep(userID int, startDate time.Time, endDate time.Time) (float64, error) {
+	// Load query file
+	fileName := "standard_deviation_sleep.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
+
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query sleep standard deviation: %w", err)
@@ -560,27 +496,16 @@ WHERE  user_id = ?
 	return standardDeviation.Float64, nil
 }
 
-func (ar *AnalyticsRepository) SleepQualityTagStat(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
-	query := `WITH tag_counts AS (
-    SELECT 
-        sqt.name AS tag_name,
-        COUNT(*) AS tag_count
-    FROM sleep_log sl
-    JOIN sleep_quality_tag sqt 
-        ON sl.sleep_quality_tag_id = sqt.sleep_quality_tag_id
-    WHERE sl.user_id = ? and sleep_date between ? and ?
-    GROUP BY sqt.name
-),
-tag_percentages AS (
-    SELECT
-        tag_name,
-        tag_count,
-        ROUND(tag_count * 100.0 / SUM(tag_count) OVER (), 2) AS percentage
-    FROM tag_counts
-)
-SELECT *
-FROM tag_percentages
-ORDER BY tag_count ASC;`
+func (ar *AnalyticsRepository) SleepQualityTagStats(userID int, startDate time.Time, endDate time.Time) ([]model.TagStat, error) {
+	// Load query file
+	fileName := "sleep_quality_tag_stats.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.TagStat, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -621,20 +546,15 @@ ORDER BY tag_count ASC;`
 }
 
 func (ar *AnalyticsRepository) SleepLogs(userID int, startDate time.Time, endDate time.Time) ([]model.SleepLog, error) {
-	query := `SELECT sl.sleep_log_id,
-       sl.user_id,
-       sl.hours_slept,
-       sqt.NAME AS sleep_quality_tag_name,
-       sl.notes,
-       sl.sleep_date,
-       sl.created_at,
-       sl.updated_at
-FROM   sleep_log sl
-       JOIN sleep_quality_tag sqt
-         ON sl.sleep_quality_tag_id = sqt.sleep_quality_tag_id
-WHERE  sl.user_id = ?
-       AND sl.sleep_date BETWEEN ? AND ?
-ORDER  BY sl.sleep_date;`
+	// Load query file
+	fileName := "sleep_logs.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.SleepLog, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -697,16 +617,15 @@ ORDER  BY sl.sleep_date;`
 }
 
 func (ar *AnalyticsRepository) DayOfWeekSleepPatterns(userID int, startDate time.Time, endDate time.Time) ([]model.DayOfWeekSleepPattern, error) {
-	query := `SELECT
-    DAYNAME(sleep_date) AS day_of_week,
-    DAYOFWEEK(sleep_date) AS day_number,
-    AVG(hours_slept) AS avg_sleep_hours,
-    COUNT(*) AS total_entries
-FROM sleep_log
-WHERE user_id = ?
-    AND sleep_date BETWEEN ? AND ?
-GROUP BY day_of_week, day_number
-ORDER BY day_number;`
+	// Load query file
+	fileName := "day_of_week_sleep_pattern.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.DayOfWeekSleepPattern, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -743,33 +662,15 @@ ORDER BY day_number;`
 	return patterns, nil
 }
 func (ar *AnalyticsRepository) MedicationLogs(userID int, startDate, endDate time.Time) ([]model.MedicationLog, error) {
-	query := `SELECT 
-		ml.medication_log_id,
-		ml.user_id,
-		ml.taken_at,
-		ml.notes AS log_notes,
-		ml.created_at,
-		ml.updated_at,
-		JSON_ARRAYAGG(
-			JSON_OBJECT(
-				'medication_id', m.medication_id,
-				'name', m.name,
-				'dosage', mli.dosage
-			)
-		) AS medications
-	FROM medication_log ml
-	JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id
-	JOIN medication m ON m.medication_id = mli.medication_id
-	WHERE ml.user_id = ?
-		AND DATE(ml.taken_at) BETWEEN ? AND ?
-	GROUP BY 
-		ml.medication_log_id,
-		ml.user_id,
-		ml.taken_at,
-		ml.notes,
-		ml.created_at,
-		ml.updated_at
-	ORDER BY ml.taken_at DESC`
+	// Load query file
+	fileName := "day_of_week_sleep_pattern.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.MedicationLog, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, userID, startDate, endDate)
 	if err != nil {
@@ -844,28 +745,24 @@ func (ar *AnalyticsRepository) MedicationLogs(userID int, startDate, endDate tim
 }
 
 // OverviewStats gets high-level medication statistics
-func (ar *AnalyticsRepository) OverviewStats(userID int, startDate, endDate time.Time) (float64, error) {
-	query := `SELECT 
-			COUNT(DISTINCT DATE(ml.taken_at)) as days_with_logs,
-			DATEDIFF(?, ?) + 1 as total_days,
-			AVG(med_count) as avg_meds_per_log
-		FROM medication_log ml
-		LEFT JOIN (
-			SELECT medication_log_id, COUNT(*) as med_count
-			FROM medication_log_item
-			GROUP BY medication_log_id
-		) med_counts ON ml.medication_log_id = med_counts.medication_log_id
-		LEFT JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id
-		WHERE ml.user_id = ?
-			AND DATE(ml.taken_at) BETWEEN ? AND ?`
+func (ar *AnalyticsRepository) MedicationOverviewStats(userID int, startDate, endDate time.Time) (float64, error) {
+	// Load query file
+	fileName := "medication_overview_stats.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	var daysWithLogs, totalDays int
 	var avgMedsPerLog sql.NullFloat64
 
-	err := ar.db.QueryRow(query, endDate, startDate, userID, startDate, endDate).Scan(
+	queryErr := ar.db.QueryRow(query, endDate, startDate, userID, startDate, endDate).Scan(
 		&daysWithLogs, &totalDays, &avgMedsPerLog,
 	)
-	if err != nil {
+	if queryErr != nil {
 		return 0, fmt.Errorf("failed to get overview stats: %w", err)
 	}
 
@@ -879,20 +776,15 @@ func (ar *AnalyticsRepository) OverviewStats(userID int, startDate, endDate time
 
 // MedicationDetailedStats returns comprehensive stats for each medication
 func (ar *AnalyticsRepository) MedicationDetailedStats(userID int, startDate, endDate time.Time) ([]model.MedicationStats, error) {
-	// First, get basic stats per medication
-	query := `SELECT 
-			m.medication_id,
-			m.name,
-			COUNT(*) as total_doses,
-			COUNT(DISTINCT DATE(ml.taken_at)) as days_active,
-			DATEDIFF(?, ?) + 1 as total_days
-		FROM medication_log ml
-		JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id
-		JOIN medication m ON mli.medication_id = m.medication_id
-		WHERE ml.user_id = ?
-			AND DATE(ml.taken_at) BETWEEN ? AND ?
-		GROUP BY m.medication_id, m.name
-		ORDER BY total_doses DESC`
+	// Load query file
+	fileName := "medication_detailed_stats.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.MedicationStats, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ar.db.Query(query, endDate, startDate, userID, startDate, endDate)
 	if err != nil {
@@ -919,7 +811,7 @@ func (ar *AnalyticsRepository) MedicationDetailedStats(userID int, startDate, en
 		}
 
 		// Get timing stats
-		timingStats, err := ar.getTimingStats(userID, medID, startDate, endDate)
+		timingStats, err := ar.MedicationTimingStats(userID, medID, startDate, endDate)
 		if err != nil {
 			return nil, err
 		}
@@ -930,7 +822,7 @@ func (ar *AnalyticsRepository) MedicationDetailedStats(userID int, startDate, en
 		stat.LatestTime = timingStats.LatestTime
 
 		// Get streaks
-		longestStreak, currentStreak, err := ar.getStreaks(userID, medID, startDate, endDate)
+		longestStreak, currentStreak, err := ar.MedicationStreaks(userID, medID, startDate, endDate)
 		if err != nil {
 			return nil, err
 		}
@@ -943,25 +835,24 @@ func (ar *AnalyticsRepository) MedicationDetailedStats(userID int, startDate, en
 	return stats, rows.Err()
 }
 
-func (ar *AnalyticsRepository) getTimingStats(userID int, medID int, startDate, endDate time.Time) (model.TimingStats, error) {
-	query := `SELECT 
-				TIME_FORMAT(SEC_TO_TIME(AVG(TIME_TO_SEC(TIME(ml.taken_at)))), '%H:%i:%s') as avg_time,
-				STD(TIME_TO_SEC(TIME(ml.taken_at))) / 60 as std_dev_minutes,
-				TIME_FORMAT(MIN(TIME(ml.taken_at)), '%H:%i:%s') as earliest_time,
-				TIME_FORMAT(MAX(TIME(ml.taken_at)), '%H:%i:%s') as latest_time
-			FROM medication_log ml
-			JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id
-			WHERE ml.user_id = ?
-				AND mli.medication_id = ?
-				AND DATE(ml.taken_at) BETWEEN ? AND ?`
+func (ar *AnalyticsRepository) MedicationTimingStats(userID int, medID int, startDate, endDate time.Time) (model.TimingStats, error) {
+	// Load query file
+	fileName := "medication_timing_stats.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return model.TimingStats{}, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)	
 
 	var avgTime, earliestTime, latestTime string
 	var stdDevMinutes sql.NullFloat64
 
-	err := ar.db.QueryRow(query, userID, medID, startDate, endDate).Scan(
+	queryErr := ar.db.QueryRow(query, userID, medID, startDate, endDate).Scan(
 		&avgTime, &stdDevMinutes, &earliestTime, &latestTime,
 	)
-	if err != nil {
+	if queryErr != nil {
 		return model.TimingStats{}, fmt.Errorf("failed to get timing stats: %w", err)
 	}
 
@@ -998,14 +889,16 @@ func formatTimingDescription(avgTime string, stdDevMinutes float64) string {
 	return fmt.Sprintf("%s ± %d minutes", timeStr, stdDevRounded)
 }
 
-func (ar *AnalyticsRepository) getStreaks(userID int, medID int, startDate, endDate time.Time) (int, int, error) {
-	query := `SELECT DISTINCT DATE(ml.taken_at) as log_date
-		FROM medication_log ml
-		JOIN medication_log_item mli ON ml.medication_log_id = mli.medication_log_id
-		WHERE ml.user_id = ?
-			AND mli.medication_id = ?
-			AND DATE(ml.taken_at) BETWEEN ? AND ?
-		ORDER BY log_date`
+func (ar *AnalyticsRepository) MedicationStreaks(userID int, medID int, startDate, endDate time.Time) (int, int, error) {
+	// Load query file
+	fileName := "medication_streaks.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return 0, 0, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)	
 
 	rows, err := ar.db.Query(query, userID, medID, startDate, endDate)
 	if err != nil {

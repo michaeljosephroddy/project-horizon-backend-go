@@ -54,7 +54,6 @@ func (as *AuthService) Register(req authmodel.RegisterRequest) (*authmodel.AuthR
 		return nil, err
 	}
 
-
 	return &authmodel.AuthResponse{
 		Token: "",
 		User:  *user,
@@ -66,6 +65,21 @@ func (as *AuthService) Login(req authmodel.LoginRequest) (*authmodel.AuthRespons
 	user, err := as.userRepo.FindByEmail(req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("user not found %w", err)
+	}
+
+	// NB only for development purposes must remove in prod
+	if req.Email == "carol@example.com" {
+		// Generate token
+		token, err := as.generateToken(user.UserID)
+		if err != nil {
+			return nil, err
+		}
+
+		return &authmodel.AuthResponse{
+			Token: token,
+			User:  *user,
+		}, nil
+
 	}
 
 	// Check password
