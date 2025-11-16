@@ -2,8 +2,10 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"errors"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/users/model"
+	"time"
 )
 
 type UserRepository struct {
@@ -42,20 +44,34 @@ func (ur *UserRepository) FindByEmail(email string) (*model.User, error) {
     `
 
 	var user model.User
+	var createdAtStr, updatedAtStr string
+
 	err := ur.db.QueryRow(query, email).Scan(
 		&user.UserID,
 		&user.Email,
 		&user.PasswordHash,
-		&user.CreatedAt,
-		&user.UpdatedAt,
+		&createdAtStr,
+		&updatedAtStr,
 	)
 
 	if err == sql.ErrNoRows {
-		return &model.User{}, errors.New("user not found")
+		return nil, errors.New("user not found")
+	}
+	if err != nil {
+		return nil, err
 	}
 
+	// Parse MySQL DATETIME format
+	layout := "2006-01-02 15:04:05"
+
+	user.CreatedAt, err = time.Parse(layout, createdAtStr)
 	if err != nil {
-		return &model.User{}, err
+		return nil, fmt.Errorf("failed parsing created_at: %w", err)
+	}
+
+	user.UpdatedAt, err = time.Parse(layout, updatedAtStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed parsing updated_at: %w", err)
 	}
 
 	return &user, nil

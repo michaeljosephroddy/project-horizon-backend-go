@@ -27,7 +27,7 @@ type SleepMetric struct {
 	Stability          string    `json:"stability"`
 	BestSleepDay       string    `json:"bestSleepDay"`
 	WorstSleepDay      string    `json:"worstSleepDay"`
-	TopTagSleepQuality TagStat   `json:"topTagSleepQuality"`
+	TopSleepQualityTag TagStat   `json:"topSleepQualityTag"`
 }
 
 type DayOfWeekSleepPattern struct {

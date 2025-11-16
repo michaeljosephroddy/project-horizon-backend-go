@@ -205,7 +205,7 @@ func (as *AnalyticsService) AnalyzeSleep(userID int, startDate time.Time, endDat
 		Stability:          stability,
 		BestSleepDay:       bestSleepDay,
 		WorstSleepDay:      worstSleepDay,
-		TopTagSleepQuality: utils.TopTagStat(topSleepQualityTags),
+		TopSleepQualityTag: utils.TopTagStat(topSleepQualityTags),
 	}
 
 	return sleepMetric, nil
