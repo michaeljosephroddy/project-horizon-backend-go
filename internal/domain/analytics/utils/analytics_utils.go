@@ -97,8 +97,8 @@ func Trend(movingAvergaes []model.MovingAverage) string {
 func Granularity(numDays int) string {
 	const (
 		maxWeekly   = 7
-		maxMonthly  = 28
-		max3Months  = 84
+		maxMonthly  = 30
+		max3Months  = 90
 		weekly      = "weekly"
 		monthly     = "monthly"
 		threeMonths = "3-months"

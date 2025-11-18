@@ -42,6 +42,4 @@ type MedicationStats struct {
 	TimingDescription   string  `json:"timingDescription"`   // "8:47 AM ± 45 minutes"
 	EarliestTime        string  `json:"earliestTime"`        // "06:15:00"
 	LatestTime          string  `json:"latestTime"`          // "22:30:00"
-	LongestStreak       int     `json:"longestStreak"`       // Consecutive days taken
-	CurrentStreak       int     `json:"currentStreak"`
 }

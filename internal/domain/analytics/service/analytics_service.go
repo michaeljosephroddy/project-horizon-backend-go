@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/utils"
@@ -24,7 +23,25 @@ func NewAnalyticsService(analyticsRepository repository.IAnalyticsRepository) *A
 func (as *AnalyticsService) AnalyzeMood(userID int, startDate time.Time, endDate time.Time) (*model.MoodMetric, error) {
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
-	numDaysPreceding := strconv.Itoa(numDays)
+
+	var numDaysPreceding string
+
+	const (
+		maxWeekly  = 7
+		maxMonthly = 30
+		max3Months = 90
+	)
+
+	switch {
+	case numDays <= maxWeekly:
+		numDaysPreceding = "3"
+	case numDays <= maxMonthly:
+		numDaysPreceding = "7"
+	case numDays <= max3Months:
+		numDaysPreceding = "14"
+	default:
+		numDaysPreceding = "3"
+	}
 
 	movingAverages, err := as.analyticsRepository.MovingAverages(userID, startDate, endDate, numDaysPreceding)
 	if err != nil {
@@ -135,7 +152,26 @@ func (as *AnalyticsService) AnalyzeSleep(userID int, startDate time.Time, endDat
 	}
 
 	numDays := utils.NumDaysBetween(startDate, endDate)
-	numDaysPreceding := strconv.Itoa(numDays)
+
+	var numDaysPreceding string
+
+	const (
+		maxWeekly  = 7
+		maxMonthly = 30
+		max3Months = 90
+	)
+
+	switch {
+	case numDays <= maxWeekly:
+		numDaysPreceding = "3"
+	case numDays <= maxMonthly:
+		numDaysPreceding = "7"
+	case numDays <= max3Months:
+		numDaysPreceding = "14"
+	default:
+		numDaysPreceding = "3"
+	}
+
 	movingAverages, err := as.analyticsRepository.MovingAvgSleep(userID, startDate, endDate, numDaysPreceding)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get moving average sleep: %w", err)
