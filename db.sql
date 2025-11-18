@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS user_medication (
     start_date DATE NOT NULL,
     end_date DATE,
     stopped TINYINT(1) NOT NULL DEFAULT 0,
-    notes TEXT,
+    note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_user_medication_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS medication_log (
     medication_log_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
     taken_at TIMESTAMP NOT NULL,
-    notes TEXT,
+    note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_medication_log_user FOREIGN KEY (user_id) REFERENCES user(user_id) ON DELETE CASCADE,
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS medication_log_item (
     medication_log_id BIGINT UNSIGNED NOT NULL,
     medication_id BIGINT UNSIGNED NOT NULL,
     dosage VARCHAR(50) NOT NULL,
-    notes TEXT,
+    note TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_log_item_log FOREIGN KEY (medication_log_id) REFERENCES medication_log(medication_log_id) ON DELETE CASCADE,
     CONSTRAINT fk_log_item_med FOREIGN KEY (medication_id) REFERENCES medication(medication_id) ON DELETE CASCADE,
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS sleep_log (
     user_id BIGINT UNSIGNED NOT NULL,
     hours_slept DECIMAL(4,2) NOT NULL CHECK (hours_slept >= 0 AND hours_slept <= 24),
     sleep_quality_tag_id BIGINT UNSIGNED NOT NULL,
-    notes TEXT,
+    note TEXT,
     sleep_date DATE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -221,7 +221,7 @@ INSERT INTO sleep_quality_tag (name, description) VALUES
 ('Very Poor', 'Minimal sleep, exhausted upon waking');
 
 -- Sample sleep logs for August 2025
-INSERT INTO sleep_log (user_id, hours_slept, sleep_quality_tag_id, sleep_date, notes) VALUES
+INSERT INTO sleep_log (user_id, hours_slept, sleep_quality_tag_id, sleep_date, note) VALUES
 -- Alice's sleep logs
 (1, 7.5, 2, '2025-08-01', 'Slept well, ready for the day'),
 (1, 8.0, 1, '2025-08-02', 'Amazing sleep after great day'),
@@ -562,7 +562,7 @@ INSERT INTO mood_log_mood_tag (mood_log_id, mood_tag_id) VALUES
 -- User 3: Takes Escitalopram (10mg) and Quetiapine (200mg)
 
 -- User 1 Logs
-INSERT INTO medication_log (user_id, taken_at, notes) VALUES
+INSERT INTO medication_log (user_id, taken_at, note) VALUES
 (1, '2025-08-01 08:30:00', 'Morning dose, feeling good'),
 (1, '2025-08-02 09:15:00', NULL),
 (1, '2025-08-03 08:45:00', 'Slept well last night'),
@@ -596,7 +596,7 @@ INSERT INTO medication_log (user_id, taken_at, notes) VALUES
 (1, '2025-08-31 09:00:00', 'End of month check-in');
 
 -- User 2 Logs
-INSERT INTO medication_log (user_id, taken_at, notes) VALUES
+INSERT INTO medication_log (user_id, taken_at, note) VALUES
 (2, '2025-08-01 07:45:00', 'Morning routine'),
 (2, '2025-08-02 08:30:00', NULL),
 (2, '2025-08-03 13:15:00', 'Took with lunch'),
@@ -630,7 +630,7 @@ INSERT INTO medication_log (user_id, taken_at, notes) VALUES
 (2, '2025-08-31 08:30:00', 'Month went well');
 
 -- User 3 Logs
-INSERT INTO medication_log (user_id, taken_at, notes) VALUES
+INSERT INTO medication_log (user_id, taken_at, note) VALUES
 (3, '2025-08-01 09:00:00', NULL),
 (3, '2025-08-01 21:00:00', 'Evening Quetiapine dose'),
 (3, '2025-08-02 08:45:00', 'Morning meds'),
@@ -683,7 +683,7 @@ INSERT INTO medication_log (user_id, taken_at, notes) VALUES
 -- medication_log_item entries
 -- User 1 takes Sertraline (medication_id=1, 50mg) and Lithium (medication_id=6, 300mg)
 -- Logs 1-31 are User 1
-INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, notes) VALUES
+INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, note) VALUES
 -- Day 1
 (1, 1, '50mg', NULL),
 (1, 6, '300mg', NULL),
@@ -780,7 +780,7 @@ INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, notes
 
 -- User 2 takes Fluoxetine (medication_id=2, 20mg) and Lamotrigine (medication_id=7, 100mg)
 -- Logs 32-62 are User 2
-INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, notes) VALUES
+INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, note) VALUES
 -- Day 1
 (32, 2, '20mg', NULL),
 (32, 7, '100mg', NULL),
@@ -878,7 +878,7 @@ INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, notes
 -- User 3 takes Escitalopram (medication_id=3, 10mg) and Quetiapine (medication_id=8, 200mg)
 -- User 3 has some logs with both meds, and separate evening Quetiapine doses
 -- Logs 63-110 are User 3
-INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, notes) VALUES
+INSERT INTO medication_log_item (medication_log_id, medication_id, dosage, note) VALUES
 -- Day 1 morning
 (63, 3, '10mg', NULL),
 -- Day 1 evening (Quetiapine only)

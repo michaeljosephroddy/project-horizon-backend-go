@@ -2,7 +2,7 @@ select sl.sleep_log_id,
        sl.user_id,
        sl.hours_slept,
        sqt.name as sleep_quality_tag_name,
-       sl.notes,
+       sl.note,
        sl.sleep_date,
        sl.created_at,
        sl.updated_at

@@ -1,7 +1,7 @@
 select ml.medication_log_id,
        ml.user_id,
        ml.taken_at,
-       ml.notes as log_notes,
+       ml.note as log_notes,
        ml.created_at,
        ml.updated_at,
        json_arrayagg(json_object('medication_id', m.medication_id, 'name', m.name, 'dosage', mli.dosage)) as medications
