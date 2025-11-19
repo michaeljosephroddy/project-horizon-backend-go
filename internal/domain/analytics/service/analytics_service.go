@@ -47,7 +47,6 @@ func (as *AnalyticsService) AnalyzeMood(userID int, startDate time.Time, endDate
 	if err != nil {
 		return nil, fmt.Errorf("failed to get moving averages: %w", err)
 	}
-	fmt.Println(movingAverages)
 
 	var movingAvg float64
 	if len(movingAverages) > 0 {

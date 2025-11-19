@@ -121,7 +121,7 @@ func TestAnalyzeMood_Success(t *testing.T) {
 		{TagName: "happy", Count: 10, Percentage: 50.0},
 	}
 
-	mockRepo.On("MovingAverages", userID, startDate, endDate, "6").Return(movingAvgs, nil)
+	mockRepo.On("MovingAverages", userID, startDate, endDate, "3").Return(movingAvgs, nil)
 	mockRepo.On("StandardDeviationMood", userID, startDate, endDate).Return(1.2, nil)
 	mockRepo.On("AvgMoodRating", userID, startDate, endDate).Return(6.5, nil)
 	mockRepo.On("MoodTagStats", userID, startDate, endDate).Return(tagStats, nil)
@@ -166,7 +166,7 @@ func TestAnalyzeSleep_Success(t *testing.T) {
 	}
 
 	mockRepo.On("AvgSleepHours", userID, startDate, endDate).Return(7.5, nil)
-	mockRepo.On("MovingAvgSleep", userID, startDate, endDate, "6").Return(movingAvgs, nil)
+	mockRepo.On("MovingAvgSleep", userID, startDate, endDate, "3").Return(movingAvgs, nil)
 	mockRepo.On("StandardDeviationSleep", userID, startDate, endDate).Return(0.8, nil)
 	mockRepo.On("SleepQualityTagStats", userID, startDate, endDate).Return(tagStats, nil)
 	mockRepo.On("DayOfWeekSleepPatterns", userID, startDate, endDate).Return(dayPatterns, nil)
@@ -205,8 +205,6 @@ func TestAnalyzeMedication_Success(t *testing.T) {
 			TimingDescription:   "8:00 AM ± 15 minutes",
 			EarliestTime:        "07:45:00",
 			LatestTime:          "08:15:00",
-			LongestStreak:       7,
-			CurrentStreak:       7,
 		},
 	}
 
