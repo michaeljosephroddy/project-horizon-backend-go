@@ -6,6 +6,7 @@ import (
 	authhandler "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/auth/handler"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/auth/middleware"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/auth/service"
+	usershandler "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/users/handler"
 )
 
 func SetupRoutes(
@@ -13,6 +14,7 @@ func SetupRoutes(
 	analyticsHandler *analyticshandler.AnalyticsHandler,
 	authHandler *authhandler.AuthHandler,
 	authService *service.AuthService,
+	usersHandler *usershandler.UserHandler,
 ) {
 	// Public routes
 	auth := r.Group("/auth")
@@ -34,6 +36,11 @@ func SetupRoutes(
 			analytics.GET("/users/:userID/mood", analyticsHandler.GetMoodMetrics)
 			analytics.GET("/users/:userID/sleep", analyticsHandler.GetSleepMetrics)
 			analytics.GET("/users/:userID/medication", analyticsHandler.GetMedicationMetrics)
+		}
+
+		users := protected.Group("/users")
+		{
+			users.GET("/:userID/user-medication", usersHandler.GetUserMedications)
 		}
 
 		// Other protected endpoints

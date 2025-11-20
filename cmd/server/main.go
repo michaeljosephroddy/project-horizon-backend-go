@@ -13,7 +13,9 @@ import (
 	analyticsservice "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/service"
 	authhandler "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/auth/handler"
 	authservice "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/auth/service"
+	usershandler "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/users/handler"
 	usersrepository "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/users/repository"
+	usersservice "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/users/service"
 )
 
 func main() {
@@ -33,16 +35,19 @@ func main() {
 	analyticsService := analyticsservice.NewAnalyticsService(analyticsRepository)
 	analyticsHandler := analyticshandler.NewAnalyticsHandler(analyticsService)
 
-	// Initialize Auth domain
-	userRepository := usersrepository.NewUserRepository(dbConnection)
-	authService := authservice.NewAuthService(userRepository)
+	usersRepository := usersrepository.NewUsersRepository(dbConnection)
+	usersService := usersservice.NewUsersService(usersRepository)
+	usersHandler := usershandler.NewUsersHandler(usersService)
+
+	// Initialize Auth domainb
+	authService := authservice.NewAuthService(usersRepository)
 	authHandler := authhandler.NewAuthHandler(authService)
 
 	// Create Gin router
 	r := gin.Default() // This includes logger & recovery middleware
 
 	// Setup routes (pass all required handlers and services)
-	router.SetupRoutes(r, analyticsHandler, authHandler, authService)
+	router.SetupRoutes(r, analyticsHandler, authHandler, authService, usersHandler)
 
 	log.Println("Routes registered, starting server on :9095...")
 

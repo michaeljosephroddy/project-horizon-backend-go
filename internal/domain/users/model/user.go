@@ -9,3 +9,14 @@ type User struct {
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
+
+// UserMedicationDTO represents user medication with joined medication details
+type UserMedicationDTO struct {
+	UserMedicationID int       `json:"userMedicationId"`
+	MedicationID     int       `json:"medicationId"`
+	Name             string    `json:"name"`
+	Dosage           *string   `json:"dosage"`
+	StartDate        time.Time `json:"startDate"`
+	Note             *string   `json:"note"`
+	Description      *string   `json:"description"`
+}
