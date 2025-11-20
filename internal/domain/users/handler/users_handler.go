@@ -2,7 +2,6 @@
 package handler
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 
@@ -37,7 +36,6 @@ func (uh *UserHandler) GetUserMedications(c *gin.Context) {
 
 	medications, err := uh.usersService.GetUserMedications(userID)
 	if err != nil {
-		log.Printf("%w", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve user medications"})
 		return
 	}
