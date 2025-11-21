@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/common/utils"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/analytics/service"
+	authutils "github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/auth/utils"
 )
 
 type AnalyticsHandler struct {
@@ -30,7 +31,7 @@ func (ah *AnalyticsHandler) GetMoodMetrics(c *gin.Context) {
 	}
 
 	// Authorization check - ensure user can only access their own data
-	if !ah.authorizeUserAccess(c, userID) {
+	if !authutils.AuthorizeUserAccess(c, userID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
@@ -53,7 +54,7 @@ func (ah *AnalyticsHandler) GetSleepMetrics(c *gin.Context) {
 	}
 
 	// Authorization check
-	if !ah.authorizeUserAccess(c, userID) {
+	if !authutils.AuthorizeUserAccess(c, userID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
@@ -76,7 +77,7 @@ func (ah *AnalyticsHandler) GetMedicationMetrics(c *gin.Context) {
 	}
 
 	// Authorization check
-	if !ah.authorizeUserAccess(c, userID) {
+	if !authutils.AuthorizeUserAccess(c, userID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})
 		return
 	}
@@ -88,24 +89,6 @@ func (ah *AnalyticsHandler) GetMedicationMetrics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, medicationMetrics)
-}
-
-// authorizeUserAccess checks if the authenticated user can access the requested user's data
-func (ah *AnalyticsHandler) authorizeUserAccess(c *gin.Context, requestedUserID int) bool {
-	// Get authenticated user ID from context (set by auth middleware)
-	authenticatedUserID, exists := c.Get("user_id")
-	if !exists {
-		return false
-	}
-
-	// Convert to int for comparison
-	authUserID, ok := authenticatedUserID.(int)
-	if !ok {
-		return false
-	}
-
-	// Users can only access their own data
-	return authUserID == requestedUserID
 }
 
 func (ah *AnalyticsHandler) extractRequestParams(c *gin.Context) (int, time.Time, time.Time, error) {
