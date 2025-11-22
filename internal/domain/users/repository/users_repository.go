@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/michaeljosephroddy/project-horizon-backend-go/internal/domain/users/model"
+	"os"
 	"time"
 )
 
@@ -16,11 +17,19 @@ func NewUsersRepository(db *sql.DB) IUserRepository {
 	return &UserRepository{db: db}
 }
 
+var home = os.Getenv("HOME")
+var queriesDir = "/repos/project-horizon-backend-go/internal/domain/users/repository/queries/"
+
 func (ur *UserRepository) Create(user *model.User) error {
-	query := `
-        INSERT INTO user (email, password_hash, created_at, updated_at) 
-        VALUES (?, ?, NOW(), NOW())
-    `
+	fileName := "create.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
+
 	result, err := ur.db.Exec(query, user.Email, user.PasswordHash)
 	if err != nil {
 		return err
@@ -34,24 +43,28 @@ func (ur *UserRepository) Create(user *model.User) error {
 }
 
 func (ur *UserRepository) FindByEmail(email string) (*model.User, error) {
-	query := `
-        SELECT user_id, email, password_hash, created_at, updated_at 
-        FROM user 
-        WHERE email = ?
-    `
+	fileName := "find_by_email.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return &model.User{}, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
+
 	var user model.User
 	var createdAtStr, updatedAtStr string
-	err := ur.db.QueryRow(query, email).Scan(
+	queryErr := ur.db.QueryRow(query, email).Scan(
 		&user.UserID,
 		&user.Email,
 		&user.PasswordHash,
 		&createdAtStr,
 		&updatedAtStr,
 	)
-	if err == sql.ErrNoRows {
+	if queryErr == sql.ErrNoRows {
 		return nil, errors.New("user not found")
 	}
-	if err != nil {
+	if queryErr != nil {
 		return nil, err
 	}
 	// Parse MySQL DATETIME format
@@ -68,45 +81,43 @@ func (ur *UserRepository) FindByEmail(email string) (*model.User, error) {
 }
 
 func (ur *UserRepository) FindByID(id int) (*model.User, error) {
-	query := `
-        SELECT user_id, email, password_hash, created_at, updated_at 
-        FROM user 
-        WHERE user_id = ?
-    `
+	fileName := "find_by_id.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return &model.User{}, fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
+
 	var user model.User
-	err := ur.db.QueryRow(query, id).Scan(
+	queryErr := ur.db.QueryRow(query, id).Scan(
 		&user.UserID,
 		&user.Email,
 		&user.PasswordHash,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
-	if err == sql.ErrNoRows {
+	if queryErr == sql.ErrNoRows {
 		return nil, errors.New("user not found")
 	}
-	if err != nil {
+	if queryErr != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-
 // GetUserMedicationsByUserID retrieves all active medications for a user
 func (ur *UserRepository) GetMedicationsByUserID(userID int) ([]model.UserMedicationDTO, error) {
-	query := `
-		SELECT 
-			um.user_medication_id,
-			um.medication_id,
-			um.dosage,
-			um.start_date,
-			um.note,
-			m.name,
-			m.description
-		FROM user_medication um
-		JOIN medication m ON um.medication_id = m.medication_id
-		WHERE um.user_id = ? AND um.stopped = 0
-		ORDER BY m.name
-	`
+
+	fileName := "get_medications_by_user_id.sql"
+	path := home + queriesDir + fileName
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return make([]model.UserMedicationDTO, 0), fmt.Errorf("error reading query file %w", err)
+	}
+	query := string(content)
 
 	rows, err := ur.db.Query(query, userID)
 	if err != nil {
